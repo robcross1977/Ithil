@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "dgSpecHash": "6Bpbk04ecRo=",
+  "success": true,
+  "projectFilePath": "/Users/robertcrossland/Code/Ithil/src/Ithil.Gateway/Ithil.Gateway.csproj",
+  "expectedPackageFiles": [
+    "/Users/robertcrossland/.nuget/packages/languageext.core/4.4.9/languageext.core.4.4.9.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/microsoft.aspnetcore.openapi/10.0.3/microsoft.aspnetcore.openapi.10.0.3.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/microsoft.bcl.asyncinterfaces/7.0.0/microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/pipelines.sockets.unofficial/2.2.8/pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/polly/8.6.5/polly.8.6.5.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/polly.core/8.6.5/polly.core.8.6.5.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/stackexchange.redis/2.11.3/stackexchange.redis.2.11.3.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/system.io.hashing/10.0.2/system.io.hashing.10.0.2.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/yarp.reverseproxy/2.3.0/yarp.reverseproxy.2.3.0.nupkg.sha512"
+  ],
+  "logs": []
+}

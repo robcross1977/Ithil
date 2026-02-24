@@ -1,0 +1,16 @@
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/bin/Debug/net10.0/Ithil.Budget.deps.json
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/bin/Debug/net10.0/Ithil.Budget.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/bin/Debug/net10.0/Ithil.Budget.pdb
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/bin/Debug/net10.0/Ithil.Core.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/bin/Debug/net10.0/Ithil.Core.pdb
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.csproj.AssemblyReference.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.GeneratedMSBuildEditorConfig.editorconfig
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.AssemblyInfoInputs.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.AssemblyInfo.cs
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.csproj.CoreCompileInputs.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.sourcelink.json
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Bu.8E497FF4.Up2Date
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/refint/Ithil.Budget.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/Ithil.Budget.pdb
+/Users/robertcrossland/Code/Ithil/src/Ithil.Budget/obj/Debug/net10.0/ref/Ithil.Budget.dll

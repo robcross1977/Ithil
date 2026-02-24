@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ithil.Attributes/Ithil.Attributes.csproj" />
+    <Project Path="src/Ithil.Budget/Ithil.Budget.csproj" />
+    <Project Path="src/Ithil.Cache/Ithil.Cache.csproj" />
+    <Project Path="src/Ithil.Core/Ithil.Core.csproj" />
+    <Project Path="src/Ithil.Gateway/Ithil.Gateway.csproj" />
+    <Project Path="src/Ithil.Management/Ithil.Management.csproj" />
+    <Project Path="src/Ithil.Privacy/Ithil.Privacy.csproj" />
+    <Project Path="src/Ithil.SourceGenerator/Ithil.SourceGenerator.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ithil.Attributes.Tests/Ithil.Attributes.Tests.csproj" />
+    <Project Path="tests/Ithil.Budget.Tests/Ithil.Budget.Tests.csproj" />
+    <Project Path="tests/Ithil.Cache.Tests/Ithil.Cache.Tests.csproj" />
+    <Project Path="tests/Ithil.Core.Tests/Ithil.Core.Tests.csproj" />
+    <Project Path="tests/Ithil.Privacy.Tests/Ithil.Privacy.Tests.csproj" />
+  </Folder>
+</Solution>

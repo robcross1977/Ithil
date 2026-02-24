@@ -1,0 +1,13 @@
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/bin/Debug/net10.0/Ithil.Core.deps.json
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/bin/Debug/net10.0/Ithil.Core.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/bin/Debug/net10.0/Ithil.Core.pdb
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.csproj.AssemblyReference.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.AssemblyInfoInputs.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.AssemblyInfo.cs
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.csproj.CoreCompileInputs.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.sourcelink.json
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/refint/Ithil.Core.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/Ithil.Core.pdb
+/Users/robertcrossland/Code/Ithil/src/Ithil.Core/obj/Debug/net10.0/ref/Ithil.Core.dll

@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "l76a+2Z+jQ8=",
+  "success": true,
+  "projectFilePath": "/Users/robertcrossland/Code/Ithil/src/Ithil.Attributes/Ithil.Attributes.csproj",
+  "expectedPackageFiles": [
+    "/Users/robertcrossland/.nuget/packages/languageext.core/4.4.9/languageext.core.4.4.9.nupkg.sha512",
+    "/Users/robertcrossland/.nuget/packages/microsoft.bcl.asyncinterfaces/7.0.0/microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,11 @@
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/bin/Debug/netstandard2.0/Ithil.SourceGenerator.deps.json
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/bin/Debug/netstandard2.0/Ithil.SourceGenerator.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/bin/Debug/netstandard2.0/Ithil.SourceGenerator.pdb
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.csproj.AssemblyReference.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.GeneratedMSBuildEditorConfig.editorconfig
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.AssemblyInfoInputs.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.AssemblyInfo.cs
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.csproj.CoreCompileInputs.cache
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.sourcelink.json
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.dll
+/Users/robertcrossland/Code/Ithil/src/Ithil.SourceGenerator/obj/Debug/netstandard2.0/Ithil.SourceGenerator.pdb

@@ -1,0 +1,6 @@
+@Ithil.Gateway_HostAddress = http://localhost:5128
+
+GET {{Ithil.Gateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
