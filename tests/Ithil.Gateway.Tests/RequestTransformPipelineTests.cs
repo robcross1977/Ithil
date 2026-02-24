@@ -1,0 +1,92 @@
+using Ithil.Core.Interfaces;
+using Ithil.Core.Models;
+using Ithil.Gateway.Transforms;
+using LanguageExt;
+using Microsoft.AspNetCore.Http;
+using NSubstitute;
+using FluentAssertions;
+
+namespace Ithil.Gateway.Tests;
+
+public class RequestTransformPipelineTests
+{
+    private readonly IAgentIdentityService _identityService = Substitute.For<IAgentIdentityService>();
+    private readonly IBudgetEngine _budgetEngine = Substitute.For<IBudgetEngine>();
+    private readonly IToolAllowlistService _allowListService = Substitute.For<IToolAllowlistService>();
+    private readonly ITraceIdFactory _traceIdFactory = Substitute.For<ITraceIdFactory>();
+    
+    private RequestTransformPipeline CreatePipeline() =>
+        new(_identityService, _budgetEngine, _allowListService, _traceIdFactory);
+
+    [Fact]
+    public async Task ReturnsUnauthorized_WhenAgentNotResolved()
+    {
+        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+            .Returns(Option<AgentIdentity>.None);
+
+        var pipeline = CreatePipeline();
+        var context = new DefaultHttpContext();
+
+        await pipeline.TransformAsync(context);
+
+        context.Response.StatusCode.Should().Be(401);
+    }
+
+    [Fact]
+    public async Task ReturnsTooManyRequests_WhenBudgetExceeded()
+    {
+        const string agentId = "agent-1";
+        var identity = new AgentIdentity { AgentId = agentId };
+        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+            .Returns(Option<AgentIdentity>.Some(identity));
+        _budgetEngine.IsWithinBudgetAsync(agentId).Returns(false);
+
+        var pipeline = CreatePipeline();
+        var context = new DefaultHttpContext();
+
+        await pipeline.TransformAsync(context);
+
+        context.Response.StatusCode.Should().Be(429);
+    }
+
+    [Fact]
+    public async Task ReturnsForbidden_WhenToolNotAllowed()
+    {
+        const string agentId = "agent-1";
+        var identity = new AgentIdentity { AgentId = agentId };
+        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+            .Returns(Option<AgentIdentity>.Some(identity));
+        _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
+        _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(false);
+
+        var pipeline = CreatePipeline();
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/tools/GetInventory";
+
+        await pipeline.TransformAsync(context);
+
+        context.Response.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public async Task StampsTraceIdHeader_WhenAllChecksPass()
+    {
+        const string agentId = "agent-1";
+        const string traceId = "trace-abc-123";
+
+        var identity = new AgentIdentity { AgentId = agentId };
+        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+            .Returns(Option<AgentIdentity>.Some(identity));
+        _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
+        _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(true);
+        _traceIdFactory.Create().Returns(traceId);
+
+        var pipeline = CreatePipeline();
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/tools/GetInventory";
+
+        await pipeline.TransformAsync(context);
+
+        context.Request.Headers["X-Ithil-TraceId"].ToString().Should().Be(traceId);
+    }
+}
