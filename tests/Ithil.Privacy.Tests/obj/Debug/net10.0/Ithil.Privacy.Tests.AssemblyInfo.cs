@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Ithil.Privacy.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a11ff9f4c63fd978a5ddc8cf7eedfe255cae008")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+246716fc59f76932d3d3b1b94fc4c10cefad6191")]
 [assembly: System.Reflection.AssemblyProductAttribute("Ithil.Privacy.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Ithil.Privacy.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
