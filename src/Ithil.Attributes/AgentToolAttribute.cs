@@ -29,6 +29,7 @@ public sealed class AgentToolAttribute(string description) : Attribute
     /// Maximum number of tokens this tool is allowed to return.
     /// Defaults to 2000.
     /// </summary>
+
     public int MaxResponseTokens { get; init; } = 2000;
 
     /// <summary>

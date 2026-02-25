@@ -1,10 +1,14 @@
 using Ithil.Gateway;
+using Ithil.Gateway.Endpoints;
+using Ithil.Gateway.Mcp;
 using Ithil.Gateway.Transforms;
 using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddIthilServices(builder.Configuration);
+builder.Services.AddScoped<McpDispatcher>();
+builder.Services.AddScoped<SseEmitter>();
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
     .AddTransforms(context =>
@@ -23,6 +27,7 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 app.MapHealthChecks("/health");
+app.MapMcpEndpoints();
 app.MapReverseProxy();
 
 app.Run();
