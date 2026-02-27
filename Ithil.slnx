@@ -16,5 +16,6 @@
     <Project Path="tests/Ithil.Core.Tests/Ithil.Core.Tests.csproj" />
     <Project Path="tests/Ithil.Gateway.Tests/Ithil.Gateway.Tests.csproj" />
     <Project Path="tests/Ithil.Privacy.Tests/Ithil.Privacy.Tests.csproj" />
+    <Project Path="tests/Ithil.SourceGenerator.Tests/Ithil.SourceGenerator.Tests.csproj" />
   </Folder>
 </Solution>
