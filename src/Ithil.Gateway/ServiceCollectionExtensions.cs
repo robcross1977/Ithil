@@ -1,6 +1,10 @@
 using Ithil.Core.Interfaces;
-using Ithil.Gateway.Transforms;
+using Ithil.Gateway.Identity;
 using Ithil.Gateway.Stubs;
+using Ithil.Gateway.Transforms;
+using Ithil.Management.Repositories;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace Ithil.Gateway;
 
@@ -11,7 +15,6 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Adds the request and response transform pipelines and all governance service interfaces.
-    /// Concrete implementations will be registered as each feature sprint is completed.
     /// </summary>
     public static IServiceCollection AddIthilServices(
         this IServiceCollection services,
@@ -20,8 +23,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<RequestTransformPipeline>();
         services.AddScoped<ResponseTransformPipeline>();
 
-        // Placeholder registrations - replace with real implementations in later sprints
-        services.AddScoped<IAgentIdentityService, NotImplementedAgentIdentityService>();
+        services.AddSingleton(BuildTokenValidationParameters(configuration));
+        services.AddScoped<IJwtIdentityResolver, JwtIdentityResolver>();
+        services.AddScoped<IApiKeyIdentityResolver, ApiKeyIdentityResolver>();
+        services.AddSingleton<IAgentConfigRepository, AgentConfigRepository>();
+        services.AddScoped<IApiKeyRepository, NotImplementedApiKeyRepository>();
+        services.AddScoped<IAgentIdentityService, AgentIdentityService>();
+
         services.AddScoped<IBudgetEngine, NotImplementedBudgetEngine>();
         services.AddScoped<IToolAllowlistService, NotImplementedToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
@@ -29,5 +37,24 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPrivacyFilter, NotImplementedPrivacyFilter>();
 
         return services;
+    }
+
+    private static TokenValidationParameters BuildTokenValidationParameters(IConfiguration configuration)
+    {
+        var jwt = configuration.GetSection("Ithil:Jwt");
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwt["SigningKey"]
+                ?? throw new InvalidOperationException("Ithil:Jwt:SigningKey is required")));
+
+        return new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = key,
+            ValidateIssuer = true,
+            ValidIssuer = jwt["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwt["Audience"],
+            ValidateLifetime = true
+        };
     }
 }

@@ -3,9 +3,9 @@ using LanguageExt;
 namespace Ithil.Core.Models;
 
 /// <summary>
-/// Represents a verified agent identity extracted from a JWT or API key.
+/// Stored configuration for a registered agent.
 /// </summary>
-public record AgentIdentity
+public record AgentConfig
 {
     /// <summary>
     /// The unique identifier for this agent.
@@ -23,17 +23,17 @@ public record AgentIdentity
     public int DailyTokenBudget { get; init; }
 
     /// <summary>
-    /// Tool names this agent is permitted to call.
+    /// Tool names this agent is permitted to call. 
     /// </summary>
     public Seq<string> AllowedTools { get; init; } = Seq<string>.Empty;
 
     /// <summary>
-    /// The scopes this agent has been granted.
+    /// OAuth scopes this agent holds.
     /// </summary>
     public Seq<string> Scopes { get; init; } = Seq<string>.Empty;
 
     /// <summary>
-    /// Whether this agent is currently active. Inactive agents are rejected with 403.
+    /// Whether this agent is currently active
     /// </summary>
     public bool IsActive { get; init; }
 }

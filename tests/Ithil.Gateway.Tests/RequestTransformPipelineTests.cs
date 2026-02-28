@@ -37,7 +37,7 @@ public class RequestTransformPipelineTests
     public async Task ReturnsTooManyRequests_WhenBudgetExceeded()
     {
         const string agentId = "agent-1";
-        var identity = new AgentIdentity { AgentId = agentId };
+        var identity = new AgentIdentity { AgentId = agentId, Label = "test-agent" };
         _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
         _budgetEngine.IsWithinBudgetAsync(agentId).Returns(false);
@@ -54,7 +54,7 @@ public class RequestTransformPipelineTests
     public async Task ReturnsForbidden_WhenToolNotAllowed()
     {
         const string agentId = "agent-1";
-        var identity = new AgentIdentity { AgentId = agentId };
+        var identity = new AgentIdentity { AgentId = agentId, Label = "test-agent" };
         _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
         _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
@@ -75,7 +75,7 @@ public class RequestTransformPipelineTests
         const string agentId = "agent-1";
         const string traceId = "trace-abc-123";
 
-        var identity = new AgentIdentity { AgentId = agentId };
+        var identity = new AgentIdentity { AgentId = agentId, Label = "test-agent" };
         _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
         _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
