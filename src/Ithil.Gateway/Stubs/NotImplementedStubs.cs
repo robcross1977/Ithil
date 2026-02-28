@@ -17,6 +17,9 @@ internal class NotImplementedBudgetEngine : IBudgetEngine
 
     public Task RecordUsageAsync(string agentId, int tokens) =>
         throw new NotImplementedException("BudgetEngine not yet implemented");
+
+    public Task<int> GetUsageAsync(string agentId) =>
+        throw new NotImplementedException("BudgetEngine not yet implemented");
 }
 
 internal class NotImplementedToolAllowlistService : IToolAllowlistService

@@ -14,4 +14,9 @@ public interface IBudgetEngine
     /// Increments the agent's token usage by the given amount. 
     /// </summary>
     Task RecordUsageAsync(string agentId, int tokens);
+
+    /// <summary>
+    /// Manages per-agent daily token budgets.
+    /// </summary>
+    Task<int> GetUsageAsync(string agentId);
 }

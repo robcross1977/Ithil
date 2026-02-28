@@ -7,8 +7,15 @@ namespace Ithil.SourceGenerator.Tests;
 
 public class AgentToolGeneratorTests
 {
-    // Defines AgentToolAttribute inline so the test compilation is self-contained
-    // and ForAttributeWithMetadataName can always resolve it by fully qualified name.
+    // Source generator tests cannot use the real Ithil.Attributes.dll directly because
+    // Roslyn needs to resolve the attribute type from within the in-memory test compilation,
+    // and resolving it from an external assembly requires loading all its transitive
+    // dependencies (Ithil.Core, LanguageExt, etc.) which is fragile and error-prone.
+    //
+    // Instead we define AgentToolAttribute inline as a source string and include it in the
+    // test compilation alongside the code under test. ForAttributeWithMetadataName matches
+    // by fully qualified name ("Ithil.Attributes.AgentToolAttribute"), so as long as the
+    // namespace and class name match the real attribute, the generator behaves identically.
     private const string AttributeSource = """
         namespace Ithil.Attributes
         {
@@ -25,6 +32,17 @@ public class AgentToolGeneratorTests
         }
         """;
 
+    // Builds an in-memory Roslyn compilation from the given source, runs AgentToolGenerator
+    // against it, and returns the output compilation, any diagnostics emitted by the generator,
+    // and the full text of the generated SchemaRegistry.g.cs file.
+    //
+    // The compilation contains two syntax trees:
+    //   1. AttributeSource — the inline AgentToolAttribute definition
+    //   2. source          — the test-specific code with [AgentTool] decorated methods
+    //
+    // Only typeof(object) is needed as a metadata reference because all types used in the
+    // test source are either from the BCL (System.Object, void, int, string) or defined
+    // inline in AttributeSource. No NuGet packages or project references are required.
     private static (
         Compilation Output,
         IReadOnlyList<Diagnostic> Diagnostics,
@@ -41,12 +59,17 @@ public class AgentToolGeneratorTests
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new AgentToolGenerator();
+
+        // CSharpGeneratorDriver runs the generator against the compilation.
+        // RunGeneratorsAndUpdateCompilation returns the new compilation (with generated files
+        // added), the generator diagnostics, and updates the driver with run results.
+        // GetRunResult().GeneratedTrees contains one entry per AddSource() call in the generator.
         var driver = CSharpGeneratorDriver.Create(generator)
             .RunGeneratorsAndUpdateCompilation(
                 inputCompilation,
                 out var outputCompilation,
                 out var diagnostics);
-        
+
         var generatedSource = driver.GetRunResult().GeneratedTrees
             .FirstOrDefault()?.GetText().ToString() ?? string.Empty;
 
