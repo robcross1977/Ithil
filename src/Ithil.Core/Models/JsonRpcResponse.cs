@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Ithil.Core.Models;
 
 /// <summary>
@@ -11,9 +13,9 @@ public record JsonRpcResponse
     public string Jsonrpc { get; init; } = "2.0";
 
     /// <summary>
-    /// Echoes the request Id.
+    /// Echoes the request Id. Per JSON-RPC 2.0 spec, may be a string, number, or null.
     /// </summary>
-    public required string Id { get; init; }
+    public JsonElement Id { get; init; }
 
     /// <summary>
     /// The result payload on success. Null if error is set.
@@ -21,14 +23,14 @@ public record JsonRpcResponse
     public object? Result { get; init; }
 
     /// <summary>
-    /// The error payload on failure. Null if result is set. 
+    /// The error payload on failure. Null if result is set.
     /// </summary>
     public JsonRpcError? Error { get; init; }
 
     /// <summary>
     /// Returns a method-not-found error response for the given request id.
     /// </summary>
-    public static JsonRpcResponse MethodNotFound(string id) => new()
+    public static JsonRpcResponse MethodNotFound(JsonElement id) => new()
     {
         Id = id,
         Error = new JsonRpcError { Code = -32601, Message = "Method not found" }

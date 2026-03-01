@@ -1,9 +1,11 @@
+using Ithil.Budget;
 using Ithil.Core.Interfaces;
 using Ithil.Gateway.Identity;
 using Ithil.Gateway.Stubs;
 using Ithil.Gateway.Transforms;
 using Ithil.Management.Repositories;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using System.Text;
 
 namespace Ithil.Gateway;
@@ -30,7 +32,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApiKeyRepository, NotImplementedApiKeyRepository>();
         services.AddScoped<IAgentIdentityService, AgentIdentityService>();
 
-        services.AddScoped<IBudgetEngine, NotImplementedBudgetEngine>();
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+            ConnectionMultiplexer.Connect(
+                configuration.GetConnectionString("Redis")
+                    ?? throw new InvalidOperationException("ConnectionStrings:Redis is required")));
+        services.AddScoped<IDatabase>(sp =>
+            sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
+        services.AddSingleton(new BudgetEngineOptions
+        {
+            DefaultDailyTokenLimit = configuration.GetValue<int>("Ithil:Budget:DefaultDailyTokenLimit", 100_000)
+        });
+        services.AddScoped<IBudgetEngine, BudgetEngine>();
+
         services.AddScoped<IToolAllowlistService, NotImplementedToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
         services.AddScoped<ITraceNotifier, NotImplementedTraceNotifier>();

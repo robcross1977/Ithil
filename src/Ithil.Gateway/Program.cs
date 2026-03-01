@@ -1,7 +1,12 @@
+using Ithil.Core.Interfaces;
+using Ithil.Core.Models;
 using Ithil.Gateway;
 using Ithil.Gateway.Endpoints;
 using Ithil.Gateway.Mcp;
 using Ithil.Gateway.Transforms;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +29,36 @@ builder.Services.AddReverseProxy()
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+// Seed a dev agent so identity resolution succeeds during local testing.
+if (app.Environment.IsDevelopment())
+{
+    var configRepo = app.Services.GetRequiredService<IAgentConfigRepository>();
+    await configRepo.UpsertAsync(new AgentConfig
+    {
+        AgentId = "dev-agent-01",
+        Label = "Dev Test Agent",
+        DailyTokenBudget = 100_000,
+        IsActive = true
+    });
+
+    // Temporary endpoint - generates a dev JWT for manual testing.
+    app.MapGet("/dev/token", (IConfiguration config) => 
+    {
+        var jwt = config.GetSection("Ithil:Jwt");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
+        var handler = new JsonWebTokenHandler();
+        var token = handler.CreateToken(new SecurityTokenDescriptor
+        {
+            Claims = new Dictionary<string, object> { { "agent_id", "dev-agent-01" } },
+            Expires = DateTime.UtcNow.AddHours(8),
+            Issuer = jwt["Issuer"],
+            Audience = jwt["Audience"],
+            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
+        });
+        return Results.Ok(new { token });
+    });
+}
 
 app.UseHttpsRedirection();
 app.MapHealthChecks("/health");

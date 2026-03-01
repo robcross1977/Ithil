@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/SampleApi/SampleApi.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Ithil.Attributes/Ithil.Attributes.csproj" />
     <Project Path="src/Ithil.Budget/Ithil.Budget.csproj" />

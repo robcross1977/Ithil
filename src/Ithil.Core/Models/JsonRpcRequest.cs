@@ -14,8 +14,9 @@ public record JsonRpcRequest
 
     /// <summary>
     /// Client-supplied identifier echoed back in the response.
+    /// Per JSON-RPC 2.0 spec, may be a string, number, or null.
     /// </summary>
-    public required string Id { get; init; }
+    public JsonElement Id { get; init; }
 
     /// <summary>
     /// The method to invoke (e.g. "tools/list", "initialize").

@@ -32,22 +32,28 @@ internal class NotImplementedBudgetEngine : IBudgetEngine
         throw new NotImplementedException("BudgetEngine not yet implemented");
 }
 
+// Pass-through until ToolAllowlistService is implemented — allows all tools.
 internal class NotImplementedToolAllowlistService : IToolAllowlistService
 {
     public Task<bool> IsAllowedAsync(string agentId, string toolName) =>
-        throw new NotImplementedException("ToolAllowlistService not yet implemented");
+        Task.FromResult(true);
 }
 
+// No-op until TraceNotifier is implemented.
 internal class NotImplementedTraceNotifier : ITraceNotifier
 {
     public Task NotifyAsync(AgentTraceEvent traceEvent) =>
-        throw new NotImplementedException("TraceNotifier not yet implemented");
+        Task.CompletedTask;
 }
 
+// Pass-through until PrivacyFilter is implemented — returns body unchanged.
 internal class NotImplementedPrivacyFilter : IPrivacyFilter
 {
-    public Task<string> ScrubAsync(Stream body) =>
-        throw new NotImplementedException("PrivacyFilter not yet implemented");
+    public Task<string> ScrubAsync(Stream body)
+    {
+        using var reader = new StreamReader(body);
+        return reader.ReadToEndAsync();
+    }
 }
 
 internal class DefaultTraceIdFactory : ITraceIdFactory
