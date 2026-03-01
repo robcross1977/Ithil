@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Ithil.Attributes;
 
 namespace Ithil.Attributes.Tests;
 

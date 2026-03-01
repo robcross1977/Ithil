@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Ithil.Budget;
 
 namespace Ithil.Budget.Tests;
 

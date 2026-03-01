@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Ithil.Gateway.Identity;
-using LanguageExt;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;

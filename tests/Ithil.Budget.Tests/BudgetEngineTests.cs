@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Ithil.Budget;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -96,4 +95,3 @@ public class BudgetEngineTests {
     }
 
 }
-
