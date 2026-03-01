@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Ithil.Core.Models;
 using Ithil.Gateway.Mcp;
+using System.Text.Json;
 
 namespace Ithil.Gateway.Tests.Mcp;
 
@@ -8,13 +9,17 @@ public class McpDispatcherTests
 {
     private readonly McpDispatcher _dispatcher = new();
 
+    // JsonElement has no public constructor — parse from a JSON string to get a typed value.
+    private static JsonElement JsonId(string json) =>
+        JsonDocument.Parse(json).RootElement.Clone();
+
     [Fact]
     public async Task ReturnsInitializeResponse_WithProtocolVersion()
     {
         var request = new JsonRpcRequest
         {
             Jsonrpc = "2.0",
-            Id = "1",
+            Id = JsonId("1"),
             Method = "initialize"
         };
 
@@ -31,7 +36,7 @@ public class McpDispatcherTests
         var request = new JsonRpcRequest
         {
             Jsonrpc = "2.0",
-            Id = "1",
+            Id = JsonId("1"),
             Method = "notifications/initialized"
         };
 
@@ -46,7 +51,7 @@ public class McpDispatcherTests
         var request = new JsonRpcRequest
         {
             Jsonrpc = "2.0",
-            Id = "1",
+            Id = JsonId("1"),
             Method = "totally/unknown"
         };
 
@@ -63,19 +68,19 @@ public class McpDispatcherTests
         var request = new JsonRpcRequest
         {
             Jsonrpc = "2.0",
-            Id = "test-123",
+            Id = JsonId("\"test-123\""),
             Method = "initialize"
         };
 
         var response = await _dispatcher.DispatchAsync(request);
 
-        response!.Id.Should().Be("test-123");
+        response!.Id.GetString().Should().Be("test-123");
     }
 
     [Fact]
-    public void JsonRpcResponse_AlwaysINcludesJsonrpcVersion()
+    public void JsonRpcResponse_AlwaysIncludesJsonrpcVersion()
     {
-        var response = JsonRpcResponse.MethodNotFound("1");
+        var response = JsonRpcResponse.MethodNotFound(JsonId("1"));
 
         response.Jsonrpc.Should().Be("2.0");
     }
