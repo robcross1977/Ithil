@@ -4,20 +4,16 @@ namespace Ithil.Attributes;
 /// Marks a controller method or class as an MCP-callable tool.
 /// The Source Generator reads this attribute at compile time to build the tool manifest.
 /// </summary>
+/// <remarks>
+/// Marks a method or class as an MCP-callable tool with the given description.
+/// </remarks>
+/// <param name="description">Human-readable description of what this tool does.</param>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
-public sealed class AgentToolAttribute : Attribute
+public sealed class AgentToolAttribute(string description) : Attribute
 {
-    /// <summary>
-    /// Marks a method or class as an MCP-callable tool with the given description.
-    /// </summary>
-    /// <param name="description">Human-readable description of what this tool does.</param>
-    public AgentToolAttribute(string description)
-    {
-        Description = description;
-    }
 
     /// <summary>The human-readable description of what this tool does.</summary>
-    public string Description { get; }
+    public string Description { get; } = description;
 
     /// <summary>OAuth scopes the calling agent must have to invoke this tool.</summary>
     public string[]? RequiredScopes { get; set; }

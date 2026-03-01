@@ -1,6 +1,5 @@
 using Ithil.Core.Interfaces;
 using LanguageExt;
-using Microsoft.AspNetCore.Http;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,7 +7,7 @@ namespace Ithil.Gateway.Identity;
 
 /// <summary>
 /// Resolvfes an agent ID from an API key in the X-Api-Key header.
-/// The ram key is never stored or logged - only its SHA-256 hash is used for lookup.t ≥≤
+/// The ram key is never stored or logged - only its SHA-256 hash is used for lookup. 
 /// </summary>
 public class ApiKeyIdentityResolver(IApiKeyRepository repo) : IApiKeyIdentityResolver
 {

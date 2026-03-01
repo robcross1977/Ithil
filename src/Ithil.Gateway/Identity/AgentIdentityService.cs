@@ -1,7 +1,6 @@
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
-using Microsoft.AspNetCore.Http;
 
 namespace Ithil.Gateway.Identity;
 
@@ -20,16 +19,16 @@ internal class AgentIdentityService(
 
     /// <summary>
     /// Returns the verified AgentIdentity for the request, or
-    /// None if ajuthentication fails or the agent is inactive
+    /// None if authentication fails or the agent is inactive
     /// </summary>
     public async Task<Option<AgentIdentity>> ResolveAgentAsync(HttpContext context)
     {
         var agentId = await _jwtResolver.TryResolveAsync(context);
         if(agentId.IsNone)
-                agentId = await _apiKeyResolver.TryResolveAsync(context);
+            agentId = await _apiKeyResolver.TryResolveAsync(context);
 
         return await agentId.MatchAsync(
-            Some: id => ResolveFromConfigAsync(id),
+            Some: ResolveFromConfigAsync,
             None: () => Task.FromResult(Option<AgentIdentity>.None));
     }
 

@@ -1,7 +1,6 @@
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
-using Microsoft.AspNetCore.Http;
 using static LanguageExt.Prelude;
 
 namespace Ithil.Gateway.Transforms;

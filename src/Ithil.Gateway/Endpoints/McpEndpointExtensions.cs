@@ -1,7 +1,4 @@
 using Ithil.Gateway.Mcp;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using System.Text.Json;
 
 namespace Ithil.Gateway.Endpoints;

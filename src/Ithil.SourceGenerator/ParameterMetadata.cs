@@ -3,18 +3,10 @@ namespace Ithil.SourceGenerator;
 /// <summary>
 /// Describes a single parameter extracted from an AgentTool-decorated method.
 /// </summary>
-public class ParameterMetadata
+public class ParameterMetadata(string name, string jsonType, string? format, bool isRequired)
 {
-    public string Name { get; }
-    public string JsonType { get; }
-    public string? Format { get; }
-    public bool IsRequired { get; }
-
-    public ParameterMetadata(string name, string jsonType, string? format, bool isRequired)
-    {
-        Name = name;
-        JsonType = jsonType;
-        Format = format;
-        IsRequired = isRequired;
-    }
+    public string Name { get; } = name;
+    public string JsonType { get; } = jsonType;
+    public string? Format { get; } = format;
+    public bool IsRequired { get; } = isRequired;
 }

@@ -1,5 +1,4 @@
 using LanguageExt;
-using Microsoft.AspNetCore.Http;
 
 namespace Ithil.Gateway.Identity;
 

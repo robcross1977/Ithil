@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace Ithil.Gateway.Endpoints;
 
 /// <summary>
