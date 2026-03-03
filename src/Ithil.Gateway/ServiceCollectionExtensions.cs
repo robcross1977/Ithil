@@ -1,9 +1,11 @@
 using Ithil.Budget;
+using Ithil.Cache;
 using Ithil.Core.Interfaces;
 using Ithil.Gateway.Identity;
 using Ithil.Gateway.Stubs;
 using Ithil.Gateway.Transforms;
 using Ithil.Management.Repositories;
+using Ithil.Privacy;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Text;
@@ -44,10 +46,19 @@ public static class ServiceCollectionExtensions
         });
         services.AddScoped<IBudgetEngine, BudgetEngine>();
 
+        services.AddSingleton(new SemanticCacheOptions
+        {
+            ModelPath = configuration["Ithil:SemanticCache:ModelPath"] ?? "models/all-MiniLM-L6-v2.onnx",
+            VocabPath = configuration["Ithil:SemanticCache:VocabPath"] ?? "models/vocab.txt"
+        });
+        services.AddSingleton<IEmbeddingService, EmbeddingService>();
+        services.AddScoped<ISemanticCache, SemanticCacheService>();
+
         services.AddScoped<IToolAllowlistService, NotImplementedToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
         services.AddScoped<ITraceNotifier, NotImplementedTraceNotifier>();
-        services.AddScoped<IPrivacyFilter, NotImplementedPrivacyFilter>();
+        services.AddSingleton<PrivacyFilterOptions>();
+        services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
 
         return services;
     }

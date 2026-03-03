@@ -1,3 +1,4 @@
+using Ithil.Core.Interfaces;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -8,7 +9,7 @@ namespace Ithil.Privacy;
 /// Built-in rules cover emails, SSNs, and credit card numbers.
 /// Additional rules can be configured via PrivacyFilterOptions.
 /// </summary>
-public class PrivacyFilterService(PrivacyFilterOptions options)
+public class PrivacyFilterService(PrivacyFilterOptions options) : IPrivacyFilter
 {
     private readonly PrivacyFilterOptions _options = options;
 
