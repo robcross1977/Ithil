@@ -42,7 +42,7 @@ public static class McpEndpointExtensions
             await context.Response.WriteAsJsonAsync(response);
         });
 
-        app.MapGet("/mcp/sse", async context =>
+        app.MapGet("/mcp", async context =>
         {
             var emitter = context.RequestServices.GetRequiredService<SseEmitter>();
             await emitter.StreamAsync(context);

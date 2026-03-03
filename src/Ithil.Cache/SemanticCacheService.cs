@@ -161,13 +161,20 @@ public class SemanticCacheService : ISemanticCache
     {
         if (result.Resp2Type != ResultType.Array) return Option<CacheResult>.None;
 
-        var items = (RedisResult[])result;
+#pragma warning disable CS8600
+        RedisResult[]? items = (RedisResult[])result;
+#pragma warning restore CS8600
 
         // items[0] = total count, items[1] = key, items[2] = field array.
         // Need at least 3 items and a non-zero count to have a result.
-        if (items.Length < 3 || (long)items[0] == 0) return Option<CacheResult>.None;
+        if (items is null || items.Length < 3 || (long)items[0] == 0) return Option<CacheResult>.None;
 
-        var fields = (RedisResult[])items[2];
+        // CS8600: StackExchange.Redis explicit cast operator lacks nullable annotation;
+        // the null check on the next line guards against the null case at runtime.
+#pragma warning disable CS8600
+        RedisResult[]? fields = (RedisResult[])items[2];
+#pragma warning restore CS8600
+        if (fields is null) return Option<CacheResult>.None;
         string? response = null;
         var distance = float.MaxValue;
 
