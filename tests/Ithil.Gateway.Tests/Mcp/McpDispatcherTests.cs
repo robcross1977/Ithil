@@ -1,13 +1,20 @@
 using FluentAssertions;
+using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Mcp;
+using LanguageExt;
+using NSubstitute;
 using System.Text.Json;
 
 namespace Ithil.Gateway.Tests.Mcp;
 
 public class McpDispatcherTests
 {
-    private readonly McpDispatcher _dispatcher = new();
+    // NSubstitute returns default(Seq<ToolRegistryEntry>) — an empty sequence — for unmocked async methods.
+    private readonly McpDispatcher _dispatcher = new(
+        Substitute.For<IToolRegistry>(),
+        Substitute.For<IHttpClientFactory>(),
+        new ToolRegistryOptions());
 
     // JsonElement has no public constructor — parse from a JSON string to get a typed value.
     private static JsonElement JsonId(string json) =>

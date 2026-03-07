@@ -32,13 +32,6 @@ internal class NotImplementedBudgetEngine : IBudgetEngine
         throw new NotImplementedException("BudgetEngine not yet implemented");
 }
 
-// Pass-through until ToolAllowlistService is implemented — allows all tools.
-internal class NotImplementedToolAllowlistService : IToolAllowlistService
-{
-    public Task<bool> IsAllowedAsync(string agentId, string toolName) =>
-        Task.FromResult(true);
-}
-
 // No-op until TraceNotifier is implemented.
 internal class NotImplementedTraceNotifier : ITraceNotifier
 {

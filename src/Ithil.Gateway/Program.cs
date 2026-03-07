@@ -25,6 +25,21 @@ builder.Services.AddReverseProxy()
 
             await pipeline.TransformAsync(transformContext.HttpContext);
         });
+
+        context.AddResponseTransform(async transformContext =>
+        {
+            if (transformContext.ProxyResponse?.Content is null) return;
+
+            var pipeline = transformContext.HttpContext.RequestServices
+                .GetRequiredService<ResponseTransformPipeline>();
+
+            var agentId  = transformContext.HttpContext.Items["Ithil.AgentId"]  as string ?? string.Empty;
+            var toolName = transformContext.HttpContext.Items["Ithil.ToolName"] as string ?? string.Empty;
+            var traceId  = transformContext.HttpContext.Request.Headers["X-Ithil-TraceId"].ToString();
+            var body     = await transformContext.ProxyResponse.Content.ReadAsStreamAsync();
+
+            await pipeline.TransformAsync(agentId, traceId, toolName, body);
+        });
     });
 builder.Services.AddHealthChecks();
 

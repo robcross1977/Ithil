@@ -30,6 +30,40 @@ public class AgentToolGeneratorTests
             }
         }
         """;
+ 
+    private const string HttpAttributeSource = """
+        namespace Microsoft.AspNetCore.Mvc
+        {
+            [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Method)]
+            public sealed class RouteAttribute : System.Attribute
+            {
+                public RouteAttribute(string template) { Template = template; }
+                public string Template { get; }
+            }
+
+            [System.AttributeUsage(System.AttributeTargets.Method)]
+            public sealed class HttpGetAttribute : System.Attribute
+            {
+                public HttpGetAttribute() {}
+                public HttpGetAttribute(string template) { Template = template; }
+                public string? Template { get; }
+            }
+
+            [System.AttributeUsage(System.AttributeTargets.Method)]
+            public sealed class HttpPostAttribute : System.Attribute
+            {
+                public HttpPostAttribute() {}
+                public HttpPostAttribute(string template) { Template = template; }
+                public string? Template { get; }
+            }
+
+            [System.AttributeUsage(System.AttributeTargets.Parameter)]
+            public sealed class FromBodyAttribute : System.Attribute {}
+
+            [System.AttributeUsage(System.AttributeTargets.Parameter)]
+            public sealed class FromQueryAttribute : System.Attribute {}
+        }
+    """;
 
     // Builds an in-memory Roslyn compilation from the given source, runs AgentToolGenerator
     // against it, and returns the output compilation, any diagnostics emitted by the generator,
@@ -52,7 +86,9 @@ public class AgentToolGeneratorTests
             "TestAssembly",
             [
                 CSharpSyntaxTree.ParseText(AttributeSource),
+                CSharpSyntaxTree.ParseText(HttpAttributeSource),
                 CSharpSyntaxTree.ParseText(source)
+
             ],
             [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -180,5 +216,135 @@ public class AgentToolGeneratorTests
 
         var (_, diagnostics, _) = RunGenerator(code);
         diagnostics.Should().Contain(d => d.Severity == DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void HttpGet_CapturesMethodAndRoute()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/inventory")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("stock/{sku}")]
+                public void GetStock(string sku) {}
+            } 
+        """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod = \"GET\"");
+        source.Should().Contain("RoutePattern = \"api/inventory/stock/{sku}\"");
+    }
+
+    [Fact]
+    public void HttpPost_CapturesMethodAndRoute()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/inventory")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost("restock")]
+                public void CreateStock() {}
+            }
+        """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod = \"POST\"");
+        source.Should().Contain("RoutePattern = \"api/inventory/restock\"");
+    }
+
+    [Fact]
+    public void RouteParam_SourceIsRoot()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("items/{id}]
+                public void Get(int id) {}
+            }
+        """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"id\", \"route\" }");
+    }
+  
+    [Fact]
+    public void SimpleTypeParam_WithoutRouteTemplate_SourceIsQuery()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("items")]
+                public void Get(string filter) {}
+            }
+        """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"filter\", \"query\" }");
+    }
+
+    public void ComplexTypeParam_SourceIsBody()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsfot.AspNetCore.Mvc;
+            public class CreateRequest { public string Sku { get; set; } }
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost("create")]
+                public void Create(CreateRequest request) {}
+            }
+        """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"request\", \"body\" }");
+    }
+
+    [Fact]
+    public void FromBodyAttribute_OverridesInference()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost("create")]
+                public void Create([FromBody] string raw) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        // string is normally inferred as query, but [FromBody] overrides that
+        source.Should().Contain("{ \"raw\", \"body\" }");
+    }
+
+    [Fact]
+    public void NoHttpAttribute_RoutePatternIsEmpty()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void NoRoute() {}
+            }
+        """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod = \"\"");
+        source.Should().Contain("RoutePattern = \"\"");
     }
 }

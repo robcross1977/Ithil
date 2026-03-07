@@ -1,3 +1,4 @@
+using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Mcp.Handlers;
 
@@ -8,19 +9,42 @@ namespace Ithil.Gateway.Mcp;
 /// </summary>
 public class McpDispatcher
 {
+    private readonly IToolRegistry _toolRegistry;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ToolRegistryOptions _options;
+
+    /// <summary>
+    /// Initializes the dispatcher with the services handlers need to process tool requests.
+    /// </summary>
+    public McpDispatcher(
+        IToolRegistry toolRegistry,
+        IHttpClientFactory httpClientFactory,
+        ToolRegistryOptions options)
+    {
+        _toolRegistry = toolRegistry;
+        _httpClientFactory = httpClientFactory;
+        _options = options;
+    }
+
     /// <summary>
     /// Dispatches the request to the correct handler based on the method field.
     /// Returns null for one-way notifications that require no response.
     /// </summary>
     public Task<JsonRpcResponse?> DispatchAsync(JsonRpcRequest request) =>
-        Task.FromResult<JsonRpcResponse?>(request.Method switch
+        request.Method switch
         {
-            "initialize"                => InitializeHandler.Handle(request),
-            "notifications/initialized" => null,
-            "tools/list"                => ToolsListHandler.Handle(request),
-            "tools/call"                => ToolsCallHandler.Handle(request),
-            "resources/list"            => ResourcesReadHandler.Handle(request),
-            "resources/read"            => ResourcesReadHandler.Handle(request),
-            _                           => JsonRpcResponse.MethodNotFound(request.Id)
-        });
+            "initialize"                => Task.FromResult<JsonRpcResponse?>(InitializeHandler.Handle(request)),
+            "notifications/initialized" => Task.FromResult<JsonRpcResponse?>(null),
+            "tools/list"                => DispatchToolsList(request),
+            "tools/call"                => DispatchToolsCall(request),
+            "resources/list"            => Task.FromResult<JsonRpcResponse?>(ResourcesReadHandler.Handle(request)),
+            "resources/read"            => Task.FromResult<JsonRpcResponse?>(ResourcesReadHandler.Handle(request)),
+            _                           => Task.FromResult<JsonRpcResponse?>(JsonRpcResponse.MethodNotFound(request.Id))
+        };
+
+    private async Task<JsonRpcResponse?> DispatchToolsList(JsonRpcRequest request) =>
+        await ToolsListHandler.HandleAsync(request, _toolRegistry);
+
+    private async Task<JsonRpcResponse?> DispatchToolsCall(JsonRpcRequest request) =>
+        await ToolsCallHandler.HandleAsync(request, _toolRegistry, _httpClientFactory, _options);
 }

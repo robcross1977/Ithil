@@ -54,7 +54,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddScoped<ISemanticCache, SemanticCacheService>();
 
-        services.AddScoped<IToolAllowlistService, NotImplementedToolAllowlistService>();
+        services.AddHttpClient();
+        var toolRegistryOptions = new Mcp.ToolRegistryOptions();
+        configuration.GetSection("Ithil:ToolRegistry").Bind(toolRegistryOptions);
+        services.AddSingleton(toolRegistryOptions);
+        services.AddSingleton<IToolRegistry, Mcp.ToolRegistryService>();
+
+        services.AddScoped<IToolAllowlistService, Identity.ToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
         services.AddScoped<ITraceNotifier, NotImplementedTraceNotifier>();
         services.AddSingleton<PrivacyFilterOptions>();

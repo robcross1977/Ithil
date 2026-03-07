@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -105,6 +106,19 @@ public class AgentToolGenerator : IIncrementalGenerator
             })
             .ToArray();
 
+        var (httpMethod, methodTemplate) = ReadHttpMethodAttribute(method);
+        var classPrefix = ReadClassRoutePrefix(method);
+
+        // Combine class [Route] prefix with method-level template.
+        // Handles cases where either part is empty to avoid double slashes.
+        var routePattern = string.IsNullOrEmpty(classPrefix)
+            ? methodTemplate
+            : string.IsNullOrEmpty(methodTemplate)
+                ? classPrefix
+                : $"{classPrefix.TrimEnd('/')}/{methodTemplate.TrimStart('/')}";
+
+        var parameterSources = DetermineParameterSources(method, routePattern);
+
         return new ToolMetadata(
             method.Name,
             description,
@@ -112,7 +126,10 @@ public class AgentToolGenerator : IIncrementalGenerator
             maxTokens,
             category,
             Array.Empty<string>(),
-            parameters);
+            parameters,
+            httpMethod,
+            routePattern,
+            parameterSources);
     }
 
     // Writes the SchemaRegistry.g.cs file into the compilation.
@@ -146,6 +163,13 @@ public class AgentToolGenerator : IIncrementalGenerator
             sb.AppendLine($"            AllowWrite = {tool.AllowWrite.ToString().ToLower()},");
             sb.AppendLine($"            MaxResponseTokens = {tool.MaxResponseTokens},");
             sb.AppendLine($"            Category = {(tool.Category == null ? "null" : $"\"{tool.Category}\"")},");
+            sb.AppendLine($"            HttpMethod = \"{tool!.HttpMethod}\",");
+            sb.AppendLine($"            RoutePattern = \"{Escape(tool.RoutePattern)}\",");
+            sb.AppendLine("            ParameterSources = new Dictionary<string, string>");
+            sb.AppendLine("            {");
+            foreach (var kvp in tool.ParameterSources)
+                sb.AppendLine($"                {{ \"{kvp.Key}\", \"{kvp.Value}\" }},");
+            sb.AppendLine("            },");
             sb.AppendLine("        },");
         }
 
@@ -159,6 +183,9 @@ public class AgentToolGenerator : IIncrementalGenerator
         sb.AppendLine("    public bool AllowWrite { get; set; }");
         sb.AppendLine("    public int MaxResponseTokens { get; set; }");
         sb.AppendLine("    public string? Category { get; set; }");
+        sb.AppendLine("    public string HttpMethod { get; set; } = string.Empty;");
+        sb.AppendLine("    public string RoutePattern { get; set; } = string.Empty;");
+        sb.AppendLine("    public Dictionary<string, string> ParameterSources { get; set; } = new();");
         sb.AppendLine("}");
 
         // AddSource registers the file with Roslyn. The filename must be unique per generator.
@@ -183,6 +210,97 @@ public class AgentToolGenerator : IIncrementalGenerator
     {
         var arg = attr.NamedArguments.FirstOrDefault(a => a.Key == name);
         return arg.Key != null ? arg.Value.Value?.ToString() : null;
+    }
+
+    // Reads [HttpGet("...")], [HttpPost("...")], etc. from the method symbol.
+    // Returns the HTTP verb and method-level route template (without class prefix).
+    // Returns empty strings if no HTTP attribute is found.
+    private static (string HttpMethod, string RouteTemplate) ReadHttpMethodAttribute(IMethodSymbol method)
+    {
+        var httpVerbs = new Dictionary<string, string>
+        {
+            ["Microsoft.AspNetCore.Mvc.HttpGetAttribute"]    = "GET",
+            ["Microsoft.AspNetCore.Mvc.HttpPostAttribute"]   = "POST",
+            ["Microsoft.AspNetCore.Mvc.HttpPutAttribute"]    = "PUT",
+            ["Microsoft.AspNetCore.Mvc.HttpDeleteAttribute"] = "DELETE",
+            ["Microsoft.AspNetCore.Mvc.HttpPatchAttribute"]  = "PATCH"
+        };
+
+        foreach (var attr in method.GetAttributes())
+        {
+            var fullName = attr.AttributeClass?.ToDisplayString();
+            if (fullName is null || !httpVerbs.TryGetValue(fullName, out var verb)) continue;
+
+            // ConstructorArgument[0] is the optional route template string.
+            var template = attr.ConstructorArguments.Length > 0
+                ? attr.ConstructorArguments[0].Value?.ToString() ?? string.Empty
+                : string.Empty;
+
+            return (verb, template);
+        }
+
+        return (string.Empty, string.Empty);
+    }
+
+    // Reads [Route("...")] from the containing class of the method.
+    // Returns empty string if no Route attribute exists on the class.
+    private static string ReadClassRoutePrefix(IMethodSymbol method)
+    {
+        var routeAttr = method.ContainingType?.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "Microsoft.AspNetCore.Mvc.RouteAttribute");
+
+        return routeAttr?.ConstructorArguments.Length > 0
+            ? routeAttr.ConstructorArguments[0].Value?.ToString() ?? string.Empty
+            : string.Empty;
+    }
+
+    // Infers how each parameter is bound based on route template, attributes, and type complexity.
+    // Priority: [FromBody] > [FromQuery] > appears in route template > single type -> query > complex -> body
+    private static Dictionary<string, string> DetermineParameterSources(
+        IMethodSymbol method, string routePattern)
+    {
+        // Extract {paramName} tokens from the combined route pattern
+        var routeParamMatches = System.Text.RegularExpressions.Regex
+            .Matches(routePattern, @"\{(\w+)\}");
+        var routeParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (System.Text.RegularExpressions.Match m in routeParamMatches)
+            routeParams.Add(m.Groups[1].Value);
+
+        var sources = new Dictionary<string, string>();
+
+        foreach ( var param in method.Parameters)
+        {
+            // [FromBody] wins regardless of anything else
+            if (param.GetAttributes().Any(a =>
+                a.AttributeClass?.ToDisplayString() == "Microsoft.AspNetCore.Mvc.FromBodyAttribute"))
+            {
+                sources[param.Name] = "body";
+                continue;
+            }
+
+            // [FromQuery] explicitly forces query string
+            if (param.GetAttributes().Any(a =>
+                a.AttributeClass?.ToDisplayString() == "Microsoft.AspNetCore.Mvc.FromQueryAttribute"))
+            {
+                sources[param.Name] = "query";
+                continue;
+            }
+
+            // Name matches a {token} in the route template -> route param
+            if (routeParams.Contains(param.Name))
+            {
+                sources[param.Name] = "route";
+                continue;
+            }
+
+            // Simple types (string, int, bool, etc.) default to query - same as ASP.NET Core
+            var isSimple = param.Type.SpecialType != SpecialType.None
+                || param.Type.TypeKind == TypeKind.Enum;
+
+            sources[param.Name] = isSimple ? "query" : "body";
+        }
+
+        return sources;
     }
 
     // Escapes quotes inside attribute description strings so they don't break the generated C# source.

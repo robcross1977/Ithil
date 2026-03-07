@@ -8,6 +8,7 @@
     <Project Path="src/Ithil.Cache/Ithil.Cache.csproj" />
     <Project Path="src/Ithil.Core/Ithil.Core.csproj" />
     <Project Path="src/Ithil.Gateway/Ithil.Gateway.csproj" />
+    <Project Path="src/Ithil.Hosting/Ithil.Hosting.csproj" />
     <Project Path="src/Ithil.Management/Ithil.Management.csproj" />
     <Project Path="src/Ithil.Privacy/Ithil.Privacy.csproj" />
     <Project Path="src/Ithil.SourceGenerator/Ithil.SourceGenerator.csproj" />

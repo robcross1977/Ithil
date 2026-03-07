@@ -2,6 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Ithil.Attributes\Ithil.Attributes.csproj" />
+    <ProjectReference Include="..\..\src\Ithil.Hosting\Ithil.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\Ithil.SourceGenerator\Ithil.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <PropertyGroup>

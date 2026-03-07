@@ -67,6 +67,9 @@ public class RequestTransformPipeline(
             return unit;
         }
 
+        // Store agentId and toolName in Items so the response transform can read them back.
+        context.Items["Ithil.AgentId"] = agentId;
+        context.Items["Ithil.ToolName"] = toolName;
         context.Request.Headers["X-Ithil-TraceId"] = traceIdFactory.Create();
         return unit;
     }
