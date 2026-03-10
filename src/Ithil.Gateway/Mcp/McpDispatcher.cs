@@ -30,8 +30,13 @@ public class McpDispatcher
     /// Dispatches the request to the correct handler based on the method field.
     /// Returns null for one-way notifications that require no response.
     /// </summary>
-    public Task<JsonRpcResponse?> DispatchAsync(JsonRpcRequest request) =>
-        request.Method switch
+    public Task<JsonRpcResponse?> DispatchAsync(JsonRpcRequest request)
+    {
+        // JSON-RPC notifications have no "id". Never send a response to a notification.
+        if (request.Id.ValueKind == System.Text.Json.JsonValueKind.Undefined)
+            return Task.FromResult<JsonRpcResponse?>(null);
+
+        return request.Method switch
         {
             "initialize"                => Task.FromResult<JsonRpcResponse?>(InitializeHandler.Handle(request)),
             "notifications/initialized" => Task.FromResult<JsonRpcResponse?>(null),
@@ -41,6 +46,7 @@ public class McpDispatcher
             "resources/read"            => Task.FromResult<JsonRpcResponse?>(ResourcesReadHandler.Handle(request)),
             _                           => Task.FromResult<JsonRpcResponse?>(JsonRpcResponse.MethodNotFound(request.Id))
         };
+    }
 
     private async Task<JsonRpcResponse?> DispatchToolsList(JsonRpcRequest request) =>
         await ToolsListHandler.HandleAsync(request, _toolRegistry);

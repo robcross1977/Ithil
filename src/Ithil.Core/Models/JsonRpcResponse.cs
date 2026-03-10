@@ -15,7 +15,9 @@ public record JsonRpcResponse
 
     /// <summary>
     /// Echoes the request Id. Per JSON-RPC 2.0 spec, may be a string, number, or null.
+    /// Omitted when the request was a notification (no id).
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public JsonElement Id { get; init; }
 
     /// <summary>
