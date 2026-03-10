@@ -46,3 +46,6 @@ nvim
 *.swp
 *.swo
 *~
+
+# Claude Code agent worktrees
+.claude/worktrees/

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Ithil.Core.Models;
 
@@ -18,13 +19,15 @@ public record JsonRpcResponse
     public JsonElement Id { get; init; }
 
     /// <summary>
-    /// The result payload on success. Null if error is set.
+    /// The result payload on success. Omitted from JSON when null.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Result { get; init; }
 
     /// <summary>
-    /// The error payload on failure. Null if result is set.
+    /// The error payload on failure. Omitted from JSON when null.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonRpcError? Error { get; init; }
 
     /// <summary>
