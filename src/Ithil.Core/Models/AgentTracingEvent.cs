@@ -34,4 +34,10 @@ public record AgentTraceEvent
     /// Number of tokens consumed by this request.
     /// </summary>
     public int TokensUsed { get; init ; }
+
+    /// <summary>
+    /// Circuit breaker state change, if this event was triggered by a circuit transititon.
+    /// "open" when the circuit just opened; "closed" when it just closed. Null otherwise.
+    /// </summary>
+    public string? CircuitState { get; init; }
 }

@@ -37,7 +37,7 @@ public static class ToolsCallHandler
             return InvalidParams(request.Id, $"Unknown tool: {toolName}");
 
         var httpRequest = ToolCallRouter.BuildRequest(tool, options.DownstreamBaseUrl, arguments);
-        var client = httpClientFactory.CreateClient();
+        var client = httpClientFactory.CreateClient("downstream");
         var response = await client.SendAsync(httpRequest);
         var content = await response.Content.ReadAsStringAsync();
 

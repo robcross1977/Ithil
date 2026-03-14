@@ -1,4 +1,5 @@
 using Ithil.Budget;
+using Polly;
 using Ithil.Cache;
 using Ithil.Core.Interfaces;
 using Ithil.Gateway.Identity;
@@ -54,7 +55,19 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddScoped<ISemanticCache, SemanticCacheService>();
 
-        services.AddHttpClient();
+        var circuitBreakerOptions = new Resilience.CircuitBreakerOptions();
+        configuration.GetSection("Ithil:CircuitBreaker").Bind(circuitBreakerOptions);
+        services.AddSingleton(circuitBreakerOptions);
+
+        services.AddHttpClient("downstream")
+            .AddResilienceHandler("circuit-breaker", (builder, context) =>
+            {
+                var notifier = context.ServiceProvider.GetRequiredService<ITraceNotifier>();
+                var cbOptions = context.ServiceProvider.GetRequiredService<Resilience.CircuitBreakerOptions>();
+                builder.AddCircuitBreaker(
+                    Resilience.CircuitBreakerPolicyFactory.CreateStrategyOptions(
+                        cbOptions, notifier, "gateway", "downstream"));
+            });
         var toolRegistryOptions = new Mcp.ToolRegistryOptions();
         configuration.GetSection("Ithil:ToolRegistry").Bind(toolRegistryOptions);
         services.AddSingleton(toolRegistryOptions);

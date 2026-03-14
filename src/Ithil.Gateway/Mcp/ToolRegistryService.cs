@@ -40,7 +40,7 @@ public class ToolRegistryService : IToolRegistry
 
         try
         {
-            var client = _httpClientFactory.CreateClient();
+            var client = _httpClientFactory.CreateClient("downstream");
             var dtos = await client.GetFromJsonAsync<List<SchemaDto>>(_options.SchemaUrl, cancellationToken)
                 ?? new List<SchemaDto>();
 
