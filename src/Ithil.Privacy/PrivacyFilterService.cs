@@ -9,22 +9,16 @@ namespace Ithil.Privacy;
 /// Built-in rules cover emails, SSNs, and credit card numbers.
 /// Additional rules can be configured via PrivacyFilterOptions.
 /// </summary>
-public class PrivacyFilterService(PrivacyFilterOptions options) : IPrivacyFilter
+public partial class PrivacyFilterService(PrivacyFilterOptions options) : IPrivacyFilter
 {
     private readonly PrivacyFilterOptions _options = options;
 
     // Pre-compiled at startup — not recompiled per request.
-    private static readonly Regex EmailRegex = new(
-        @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
-        RegexOptions.Compiled);
+    private static readonly Regex EmailRegex = GeneratedEmailRegex();
 
-    private static readonly Regex SsnRegex = new(
-        @"\b\d{3}-\d{2}-\d{4}\b",
-        RegexOptions.Compiled);
+    private static readonly Regex SsnRegex = GeneratedSsnRegex();
 
-    private static readonly Regex CreditCardRegex = new(
-        @"\b(?:\d[ -]?){13,15}\d\b",
-        RegexOptions.Compiled);
+    private static readonly Regex CreditCardRegex = GeneratedCreditCardRegex();
 
     /// <summary>
     /// Reads the response body stream, applies all PII redaction rules, and returns the scrubbed string.
@@ -45,4 +39,11 @@ public class PrivacyFilterService(PrivacyFilterOptions options) : IPrivacyFilter
 
         return content;
     }
+
+    [GeneratedRegex(@"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", RegexOptions.Compiled)]
+    private static partial Regex GeneratedEmailRegex();
+    [GeneratedRegex(@"\b\d{3}-\d{2}-\d{4}\b", RegexOptions.Compiled)]
+    private static partial Regex GeneratedSsnRegex();
+    [GeneratedRegex(@"\b(?:\d[ -]?){13,15}\d\b", RegexOptions.Compiled)]
+    private static partial Regex GeneratedCreditCardRegex();
 }

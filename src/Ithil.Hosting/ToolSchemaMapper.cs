@@ -12,5 +12,5 @@ public static class ToolSchemaMapper
     public static ToolInputSchema BuildInputSchema(Dictionary<string, string> parameterSources) =>
         new(
             parameterSources.Keys.ToDictionary(name => name, _ => new ToolSchemaProperty("string", null)),
-            parameterSources.Keys.ToList());
+            [.. parameterSources.Keys]);
 }
