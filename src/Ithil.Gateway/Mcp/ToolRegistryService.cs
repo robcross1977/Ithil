@@ -8,23 +8,17 @@ namespace Ithil.Gateway.Mcp;
 /// <summary>
 /// Fetches tool definitions from the downstream /ithil/schema endpoint and caches them in memory.
 /// </summary>
-public class ToolRegistryService : IToolRegistry
+/// <remarks>
+/// Initializes the registry with an HTTP client factory and configuration options.
+/// </remarks>
+public class ToolRegistryService(IHttpClientFactory httpClientFactory, ToolRegistryOptions options) : IToolRegistry
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ToolRegistryOptions _options;
-    private readonly object _lock = new();
+    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly ToolRegistryOptions _options = options;
+    private readonly Lock _lock = new();
 
     // Null means not yet fetched. Non-null (even if empty) means fetch has run.
     private Seq<ToolRegistryEntry>? _cache;
-
-    /// <summary>
-    /// Initializes the registry with an HTTP client factory and configuration options.
-    /// </summary>
-    public ToolRegistryService(IHttpClientFactory httpClientFactory, ToolRegistryOptions options)
-    {
-        _httpClientFactory = httpClientFactory;
-        _options = options;
-    }
 
     /// <summary>
     /// Returns all tools from the downstream schema endpoint.
@@ -42,7 +36,7 @@ public class ToolRegistryService : IToolRegistry
         {
             var client = _httpClientFactory.CreateClient("downstream");
             var dtos = await client.GetFromJsonAsync<List<SchemaDto>>(_options.SchemaUrl, cancellationToken)
-                ?? new List<SchemaDto>();
+                ?? [];
 
             var tools = dtos.Select(ToEntry).ToSeq();
             lock (_lock) { _cache = tools; }
@@ -66,13 +60,13 @@ public class ToolRegistryService : IToolRegistry
         dto.Category,
         dto.HttpMethod,
         dto.RoutePattern,
-        dto.ParameterSources ?? new(),
+        dto.ParameterSources ?? [],
         new McpInputSchema
         {
             Properties = Map.createRange(
-                (dto.InputSchema?.Properties ?? new())
+                (dto.InputSchema?.Properties ?? [])
                     .Select(kvp => (kvp.Key, new JsonSchemaProperty { Type = kvp.Value.Type, Description = kvp.Value.Description }))),
-            Required = (dto.InputSchema?.Required ?? new()).ToSeq()
+            Required = (dto.InputSchema?.Required ?? []).ToSeq()
         });
 
     // Private DTOs for JSON deserialization — mirror ToolSchemaResponse using plain C# types.
