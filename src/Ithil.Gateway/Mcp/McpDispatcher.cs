@@ -7,30 +7,21 @@ namespace Ithil.Gateway.Mcp;
 /// <summary>
 /// Routes incoming JSON-RPC 2.0 requests to the appropriate MCP method handler.
 /// </summary>
-public class McpDispatcher
+/// <remarks>
+/// Initializes the dispatcher with the services handlers need to process tool requests.
+/// </remarks>
+public class McpDispatcher(
+    IToolRegistry toolRegistry,
+    IHttpClientFactory httpClientFactory,
+    ToolRegistryOptions options,
+    ISemanticCache semanticCache,
+    ITraceNotifier traceNotifier)
 {
-    private readonly IToolRegistry _toolRegistry;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ToolRegistryOptions _options;
-    private readonly ISemanticCache _semanticCache;
-    private readonly ITraceNotifier _traceNotifier;
-
-    /// <summary>
-    /// Initializes the dispatcher with the services handlers need to process tool requests.
-    /// </summary>
-    public McpDispatcher(
-        IToolRegistry toolRegistry,
-        IHttpClientFactory httpClientFactory,
-        ToolRegistryOptions options,
-        ISemanticCache semanticCache,
-        ITraceNotifier traceNotifier)
-    {
-        _toolRegistry = toolRegistry;
-        _httpClientFactory = httpClientFactory;
-        _options = options;
-        _semanticCache = semanticCache;
-        _traceNotifier = traceNotifier;
-    }
+    private readonly IToolRegistry _toolRegistry = toolRegistry;
+    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly ToolRegistryOptions _options = options;
+    private readonly ISemanticCache _semanticCache = semanticCache;
+    private readonly ITraceNotifier _traceNotifier = traceNotifier;
 
     /// <summary>
     /// Dispatches the request to the correct handler based on the method field.

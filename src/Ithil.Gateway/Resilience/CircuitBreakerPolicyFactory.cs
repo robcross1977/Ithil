@@ -37,7 +37,7 @@ internal static class CircuitBreakerPolicyFactory
         string agentId,
         string toolName
     ) =>
-        new CircuitBreakerStrategyOptions<HttpResponseMessage>
+        new()
         {
             MinimumThroughput = options.MinimumThroughput,
             FailureRatio = options.FailureRatio,

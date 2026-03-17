@@ -7,6 +7,11 @@ namespace Ithil.Gateway.Endpoints;
 /// Registers all MCP protocol endpoints on the application router.
 public static class McpEndpointExtensions
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     /// <summary>
     /// Maps /.well-known/mcp, POST /mcp and GET /mcp/sse onto the route builder.
     /// </summary>
@@ -18,13 +23,13 @@ public static class McpEndpointExtensions
             resources = Array.Empty<object>()
         }));
 
-        app.MapPost("/mcp", async context =>
+        _ = app.MapPost("/mcp", static async context =>
         {
             var request = await JsonSerializer.DeserializeAsync<Ithil.Core.Models.JsonRpcRequest>(
                 context.Request.Body,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonOptions);
 
-            if(request is null)
+            if (request is null)
             {
                 context.Response.StatusCode = 400;
                 return;
@@ -32,8 +37,8 @@ public static class McpEndpointExtensions
 
             var dispatcher = context.RequestServices.GetRequiredService<McpDispatcher>();
             var response = await dispatcher.DispatchAsync(request);
-            
-            if(response is null)
+
+            if (response is null)
             {
                 context.Response.StatusCode = 204;
                 return;
