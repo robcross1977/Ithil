@@ -294,6 +294,7 @@ public class AgentToolGeneratorTests
         source.Should().Contain("{ \"filter\", \"query\" }");
     }
 
+    [Fact]
     public void ComplexTypeParam_SourceIsBody()
     {
         var code = """
