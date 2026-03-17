@@ -8,7 +8,7 @@ namespace Ithil.Gateway.Mcp;
 /// <summary>
 /// Builds HTTP requests from a tool registry entry and the arguments supplied by the AI agent.
 /// </summary>
-public static class ToolCallRouter
+public static partial class ToolCallRouter
 {
     /// <summary>
     /// Builds an HttpRequestMessage for the given tool and arguments.
@@ -40,7 +40,7 @@ public static class ToolCallRouter
     /// Extracts {paramName} tokens from a route pattern string.
     /// </summary>
     public static IEnumerable<string> RouteParamNames(string routePattern) =>
-        Regex.Matches(routePattern, @"\{(\w+)\}")
+        RouteRegex().Matches(routePattern)
              .Select(m => m.Groups[1].Value);
 
     // Substitutes {param} tokens in the route pattern with URL-encoded argument values.
@@ -73,4 +73,7 @@ public static class ToolCallRouter
         var fullPath = string.IsNullOrEmpty(query) ? path : $"{path}?{query}";
         return $"{baseUrl.TrimEnd('/')}/{fullPath.TrimStart('/')}";
     }
+
+    [GeneratedRegex(@"\{(\w+)\}")]
+    private static partial Regex RouteRegex();
 }
