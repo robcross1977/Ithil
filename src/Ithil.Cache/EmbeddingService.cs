@@ -82,7 +82,7 @@ public class EmbeddingService : IEmbeddingService, IDisposable
 
         // last_hidden_state shape: [1, seqLen, 384]
         // Each position t contains a 384-float vector for that token.
-        var hiddenState = results.First().AsTensor<float>();
+        var hiddenState = results[0].AsTensor<float>();
 
         // Step 4: Mean pooling — collapse the seqLen token vectors into one.
         // We average only the real tokens (where attentionMask[t] == 1).
@@ -131,5 +131,9 @@ public class EmbeddingService : IEmbeddingService, IDisposable
         return [.. vector.Select(x => x / magnitude)];
     }
 
-    public void Dispose() => _session.Dispose();
+    public void Dispose()
+    {
+        _session.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
