@@ -1,15 +1,16 @@
+using System.Text;
 using Ithil.Budget;
-using Polly;
 using Ithil.Cache;
 using Ithil.Core.Interfaces;
+using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Identity;
 using Ithil.Gateway.Stubs;
 using Ithil.Gateway.Transforms;
 using Ithil.Management.Repositories;
 using Ithil.Privacy;
 using Microsoft.IdentityModel.Tokens;
+using Polly;
 using StackExchange.Redis;
-using System.Text;
 
 namespace Ithil.Gateway;
 
@@ -23,7 +24,8 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddIthilServices(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration
+    )
     {
         services.AddScoped<RequestTransformPipeline>();
         services.AddScoped<ResponseTransformPipeline>();
@@ -38,20 +40,32 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(
                 configuration.GetConnectionString("Redis")
-                    ?? throw new InvalidOperationException("ConnectionStrings:Redis is required")));
+                    ?? throw new InvalidOperationException("ConnectionStrings:Redis is required")
+            )
+        );
         services.AddScoped<IDatabase>(sp =>
-            sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
-        services.AddSingleton(new BudgetEngineOptions
-        {
-            DefaultDailyTokenLimit = configuration.GetValue<int>("Ithil:Budget:DefaultDailyTokenLimit", 100_000)
-        });
+            sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase()
+        );
+        services.AddSingleton(
+            new BudgetEngineOptions
+            {
+                DefaultDailyTokenLimit = configuration.GetValue<int>(
+                    "Ithil:Budget:DefaultDailyTokenLimit",
+                    100_000
+                ),
+            }
+        );
         services.AddScoped<IBudgetEngine, BudgetEngine>();
 
-        services.AddSingleton(new SemanticCacheOptions
-        {
-            ModelPath = configuration["Ithil:SemanticCache:ModelPath"] ?? "models/all-MiniLM-L6-v2.onnx",
-            VocabPath = configuration["Ithil:SemanticCache:VocabPath"] ?? "models/vocab.txt"
-        });
+        services.AddSingleton(
+            new SemanticCacheOptions
+            {
+                ModelPath =
+                    configuration["Ithil:SemanticCache:ModelPath"]
+                    ?? "models/all-MiniLM-L6-v2.onnx",
+                VocabPath = configuration["Ithil:SemanticCache:VocabPath"] ?? "models/vocab.txt",
+            }
+        );
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddScoped<ISemanticCache, SemanticCacheService>();
 
@@ -59,35 +73,51 @@ public static class ServiceCollectionExtensions
         configuration.GetSection("Ithil:CircuitBreaker").Bind(circuitBreakerOptions);
         services.AddSingleton(circuitBreakerOptions);
 
-        services.AddHttpClient("downstream")
-            .AddResilienceHandler("circuit-breaker", (builder, context) =>
-            {
-                var notifier = context.ServiceProvider.GetRequiredService<ITraceNotifier>();
-                var cbOptions = context.ServiceProvider.GetRequiredService<Resilience.CircuitBreakerOptions>();
-                builder.AddCircuitBreaker(
-                    Resilience.CircuitBreakerPolicyFactory.CreateStrategyOptions(
-                        cbOptions, notifier, "gateway", "downstream"));
-            });
+        services
+            .AddHttpClient("downstream")
+            .AddResilienceHandler(
+                "circuit-breaker",
+                (builder, context) =>
+                {
+                    var notifier = context.ServiceProvider.GetRequiredService<ITraceNotifier>();
+                    var cbOptions =
+                        context.ServiceProvider.GetRequiredService<Resilience.CircuitBreakerOptions>();
+                    builder.AddCircuitBreaker(
+                        Resilience.CircuitBreakerPolicyFactory.CreateStrategyOptions(
+                            cbOptions,
+                            notifier,
+                            "gateway",
+                            "downstream"
+                        )
+                    );
+                }
+            );
         var toolRegistryOptions = new Mcp.ToolRegistryOptions();
         configuration.GetSection("Ithil:ToolRegistry").Bind(toolRegistryOptions);
         services.AddSingleton(toolRegistryOptions);
         services.AddSingleton<IToolRegistry, Mcp.ToolRegistryService>();
 
-        services.AddScoped<IToolAllowlistService, Identity.ToolAllowlistService>();
+        services.AddScoped<IToolAllowlistService, ToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
-        services.AddScoped<ITraceNotifier, NotImplementedTraceNotifier>();
+        services.AddSignalR();
+        services.AddScoped<ITraceNotifier, TraceNotifier>();
         services.AddSingleton<PrivacyFilterOptions>();
         services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
 
         return services;
     }
 
-    private static TokenValidationParameters BuildTokenValidationParameters(IConfiguration configuration)
+    private static TokenValidationParameters BuildTokenValidationParameters(
+        IConfiguration configuration
+    )
     {
         var jwt = configuration.GetSection("Ithil:Jwt");
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwt["SigningKey"]
-                ?? throw new InvalidOperationException("Ithil:Jwt:SigningKey is required")));
+            Encoding.UTF8.GetBytes(
+                jwt["SigningKey"]
+                    ?? throw new InvalidOperationException("Ithil:Jwt:SigningKey is required")
+            )
+        );
 
         return new TokenValidationParameters
         {
@@ -97,7 +127,7 @@ public static class ServiceCollectionExtensions
             ValidIssuer = jwt["Issuer"],
             ValidateAudience = true,
             ValidAudience = jwt["Audience"],
-            ValidateLifetime = true
+            ValidateLifetime = true,
         };
     }
 }

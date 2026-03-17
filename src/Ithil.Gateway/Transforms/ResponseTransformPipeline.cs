@@ -11,43 +11,69 @@ namespace Ithil.Gateway.Transforms;
 public class ResponseTransformPipeline(
     IPrivacyFilter privacyFilter,
     IBudgetEngine budgetEngine,
-    ITraceNotifier traceNotifier)
+    ITraceNotifier traceNotifier
+)
 {
     /// <summary>
     /// Scrubs the response body, records token usage and fires a trace event.
     /// Failures fire an error trace event instead of propagating the exception.
     /// </summary>
-    public async Task TransformAsync(string agentId, string traceId, string toolName, Stream body)
+    public async Task TransformAsync(
+        string agentId,
+        string traceId,
+        string toolName,
+        Stream body,
+        long? latencyMs
+    )
     {
-        var result = await TryAsync(() => RunResponsePipelineAsync(agentId, traceId, toolName, body)).Try();
+        var result = await TryAsync(() =>
+                RunResponsePipelineAsync(agentId, traceId, toolName, body, latencyMs)
+            )
+            .Try();
 
         await result.Match(
             Succ: _ => Task.CompletedTask,
-            Fail: async _ => await traceNotifier.NotifyAsync(new AgentTraceEvent
-            {
-                TraceId = traceId,
-                AgentId = agentId,
-                ToolName = toolName,
-                Status = "error",
-                TokensUsed = 0
-            }));
+            Fail: async _ =>
+                await traceNotifier.NotifyAsync(
+                    new AgentTraceEvent
+                    {
+                        TraceId = traceId,
+                        AgentId = agentId,
+                        ToolName = toolName,
+                        Status = "error",
+                        TokensUsed = 0,
+                        Timestamp = DateTime.UtcNow.ToString("O"),
+                        LatencyMs = latencyMs,
+                    }
+                )
+        );
     }
 
-    private async Task<Unit> RunResponsePipelineAsync(string agentId, string traceId, string toolName, Stream body)
-    {  
+    private async Task<Unit> RunResponsePipelineAsync(
+        string agentId,
+        string traceId,
+        string toolName,
+        Stream body,
+        long? latencyMs
+    )
+    {
         var scrubbedBody = await privacyFilter.ScrubAsync(body);
         var tokensUsed = scrubbedBody.Split(' ').Length;
 
         await budgetEngine.RecordUsageAsync(agentId, tokensUsed);
 
-        await traceNotifier.NotifyAsync(new AgentTraceEvent
-        {
-            TraceId = traceId,
-            AgentId = agentId,
-            ToolName = toolName,
-            Status = "success",
-            TokensUsed = tokensUsed
-        });
+        await traceNotifier.NotifyAsync(
+            new AgentTraceEvent
+            {
+                TraceId = traceId,
+                AgentId = agentId,
+                ToolName = toolName,
+                Status = "success",
+                TokensUsed = tokensUsed,
+                Timestamp = DateTime.UtcNow.ToString("O"),
+                LatencyMs = latencyMs,
+            }
+        );
 
         return unit;
     }

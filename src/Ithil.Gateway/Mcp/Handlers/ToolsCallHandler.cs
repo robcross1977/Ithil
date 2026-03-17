@@ -1,6 +1,6 @@
+using System.Text.Json;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
-using System.Text.Json;
 
 namespace Ithil.Gateway.Mcp.Handlers;
 
@@ -17,7 +17,10 @@ public static class ToolsCallHandler
         JsonRpcRequest request,
         IToolRegistry registry,
         IHttpClientFactory httpClientFactory,
-        ToolRegistryOptions options)
+        ToolRegistryOptions options,
+        ISemanticCache semanticCache,
+        ITraceNotifier traceNotifier
+    )
     {
         if (!request.Params.HasValue)
             return InvalidParams(request.Id, "Missing params");
@@ -36,6 +39,32 @@ public static class ToolsCallHandler
         if (tool is null)
             return InvalidParams(request.Id, $"Unknown tool: {toolName}");
 
+        var cachedResult = await semanticCache.TryGetAsync(toolName, arguments);
+
+        if (cachedResult.IsSome)
+        {
+            var cached = cachedResult.Match(r => r, () => null!);
+
+            await traceNotifier.NotifyAsync(
+                new AgentTraceEvent
+                {
+                    TraceId = string.Empty,
+                    AgentId = string.Empty,
+                    ToolName = toolName,
+                    Status = "cache-hit",
+                    Timestamp = DateTime.UtcNow.ToString("O"),
+                }
+            );
+
+            return new JsonRpcResponse
+            {
+                Id = request.Id,
+                Result = new
+                {
+                    content = new[] { new { type = "text", text = cached.SerializedResponse } },
+                },
+            };
+        }
         var httpRequest = ToolCallRouter.BuildRequest(tool, options.DownstreamBaseUrl, arguments);
         var client = httpClientFactory.CreateClient("downstream");
         var response = await client.SendAsync(httpRequest);
@@ -44,13 +73,14 @@ public static class ToolsCallHandler
         return new JsonRpcResponse
         {
             Id = request.Id,
-            Result = new { content = new[] { new { type = "text", text = content } } }
+            Result = new { content = new[] { new { type = "text", text = content } } },
         };
     }
 
-    private static JsonRpcResponse InvalidParams(JsonElement id, string message) => new()
-    {
-        Id = id,
-        Error = new JsonRpcError { Code = -32602, Message = message }
-    };
+    private static JsonRpcResponse InvalidParams(JsonElement id, string message) =>
+        new()
+        {
+            Id = id,
+            Error = new JsonRpcError { Code = -32602, Message = message },
+        };
 }

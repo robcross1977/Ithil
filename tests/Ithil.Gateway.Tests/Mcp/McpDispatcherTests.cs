@@ -1,10 +1,10 @@
+using System.Text.Json;
 using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Mcp;
 using LanguageExt;
 using NSubstitute;
-using System.Text.Json;
 
 namespace Ithil.Gateway.Tests.Mcp;
 
@@ -14,20 +14,22 @@ public class McpDispatcherTests
     private readonly McpDispatcher _dispatcher = new(
         Substitute.For<IToolRegistry>(),
         Substitute.For<IHttpClientFactory>(),
-        new ToolRegistryOptions());
+        new ToolRegistryOptions(),
+        Substitute.For<ISemanticCache>(),
+        Substitute.For<ITraceNotifier>()
+    );
 
     // JsonElement has no public constructor — parse from a JSON string to get a typed value.
-    private static JsonElement JsonId(string json) =>
-        JsonDocument.Parse(json).RootElement.Clone();
+    private static JsonElement JsonId(string json) => JsonDocument.Parse(json).RootElement.Clone();
 
     [Fact]
     public async Task ReturnsInitializeResponse_WithProtocolVersion()
     {
-        var request = new JsonRpcRequest
+        JsonRpcRequest request = new()
         {
             Jsonrpc = "2.0",
             Id = JsonId("1"),
-            Method = "initialize"
+            Method = "initialize",
         };
 
         var response = await _dispatcher.DispatchAsync(request);
@@ -40,11 +42,11 @@ public class McpDispatcherTests
     [Fact]
     public async Task ReturnsNull_ForInitializedNotifications()
     {
-        var request = new JsonRpcRequest
+        JsonRpcRequest request = new()
         {
             Jsonrpc = "2.0",
             Id = JsonId("1"),
-            Method = "notifications/initialized"
+            Method = "notifications/initialized",
         };
 
         var response = await _dispatcher.DispatchAsync(request);
@@ -55,11 +57,11 @@ public class McpDispatcherTests
     [Fact]
     public async Task ReturnsMethodNotFound_ForUnknownMethod()
     {
-        var request = new JsonRpcRequest
+        JsonRpcRequest request = new()
         {
             Jsonrpc = "2.0",
             Id = JsonId("1"),
-            Method = "totally/unknown"
+            Method = "totally/unknown",
         };
 
         var response = await _dispatcher.DispatchAsync(request);
@@ -72,11 +74,11 @@ public class McpDispatcherTests
     [Fact]
     public async Task EchoesRequestId_InResponse()
     {
-        var request = new JsonRpcRequest
+        JsonRpcRequest request = new()
         {
             Jsonrpc = "2.0",
             Id = JsonId("\"test-123\""),
-            Method = "initialize"
+            Method = "initialize",
         };
 
         var response = await _dispatcher.DispatchAsync(request);
@@ -87,7 +89,7 @@ public class McpDispatcherTests
     [Fact]
     public void JsonRpcResponse_AlwaysIncludesJsonrpcVersion()
     {
-        var response = JsonRpcResponse.MethodNotFound(JsonId("1"));
+        JsonRpcResponse response = JsonRpcResponse.MethodNotFound(JsonId("1"));
 
         response.Jsonrpc.Should().Be("2.0");
     }

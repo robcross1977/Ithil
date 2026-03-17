@@ -26,14 +26,24 @@ public record AgentTraceEvent
     public required string Status { get; init; }
 
     /// <summary>
+    /// ISO 8601 UTC timestamp of when the event was fired.
+    /// </summary>
+    public required string Timestamp { get; set; }
+
+    /// <summary>
+    /// Error message if status is "error". Null otherwise.
+    /// </summary>
+    public string? ErrorMessage { get; set; }
+
+    /// <summary>
     /// How long the request took in milliseconods.
     /// </summary>
-    public int LatencyMs { get; init; }
+    public long? LatencyMs { get; init; }
 
     /// <summary>
     /// Number of tokens consumed by this request.
     /// </summary>
-    public int TokensUsed { get; init ; }
+    public int? TokensUsed { get; init ; }
 
     /// <summary>
     /// Circuit breaker state change, if this event was triggered by a circuit transititon.

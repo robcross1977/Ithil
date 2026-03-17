@@ -1,8 +1,8 @@
+using System.Net;
+using System.Text;
 using FluentAssertions;
 using Ithil.Gateway.Mcp;
 using NSubstitute;
-using System.Net;
-using System.Text;
 
 namespace Ithil.Gateway.Tests.Mcp;
 
@@ -30,17 +30,17 @@ public class ToolRegistryServiceTests
     // Creates a ToolRegistryService with an HttpClient backed by the given handler.
     private static ToolRegistryService MakeService(HttpMessageHandler handler)
     {
-        var httpClient = new HttpClient(handler);
+        HttpClient httpClient = new(handler);
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(httpClient);
-        var options = new ToolRegistryOptions { DownstreamBaseUrl = "http://localhost:5200" };
+        ToolRegistryOptions options = new() { DownstreamBaseUrl = "http://localhost:5200" };
         return new ToolRegistryService(factory, options);
     }
 
     [Fact]
     public async Task GetTools_CallsDownstreamSchemaEndpoint_AndReturnsTools()
     {
-        var handler = new FakeHttpMessageHandler(SampleSchemaJson);
+        FakeHttpMessageHandler handler = new(SampleSchemaJson);
         var service = MakeService(handler);
 
         var tools = await service.GetToolsAsync();
@@ -54,7 +54,7 @@ public class ToolRegistryServiceTests
     [Fact]
     public async Task GetTools_CachesResultAfterFirstCall()
     {
-        var handler = new FakeHttpMessageHandler(SampleSchemaJson);
+        FakeHttpMessageHandler handler = new(SampleSchemaJson);
         var service = MakeService(handler);
 
         await service.GetToolsAsync();
@@ -67,7 +67,7 @@ public class ToolRegistryServiceTests
     [Fact]
     public async Task GetTools_ReturnsEmpty_WhenDownstreamUnreachable()
     {
-        var handler = new FakeHttpMessageHandler(new HttpRequestException("connection refused"));
+        FakeHttpMessageHandler handler = new(new HttpRequestException("connection refused"));
         var service = MakeService(handler);
 
         var tools = await service.GetToolsAsync();
@@ -83,19 +83,22 @@ public class ToolRegistryServiceTests
         public int CallCount { get; private set; }
 
         public FakeHttpMessageHandler(string responseJson) => _responseJson = responseJson;
+
         public FakeHttpMessageHandler(Exception exception) => _exception = exception;
 
         protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
         {
             CallCount++;
 
             if (_exception is not null)
                 throw _exception;
 
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            HttpResponseMessage response = new(HttpStatusCode.OK)
             {
-                Content = new StringContent(_responseJson!, Encoding.UTF8, "application/json")
+                Content = new StringContent(_responseJson!, Encoding.UTF8, "application/json"),
             };
             return Task.FromResult(response);
         }

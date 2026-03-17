@@ -17,11 +17,11 @@ public class ResponseTransformPipelineTests
     [Fact]
     public async Task CallsScrubber_OnResponseBody()
     {
-        var body = new MemoryStream("response body"u8.ToArray());
+        MemoryStream body = new("response body"u8.ToArray());
         _privacyFilter.ScrubAsync(Arg.Any<Stream>()).Returns("response body");
 
         var pipeline = CreatePipeline();
-        await pipeline.TransformAsync("agent-1", "trace-abc-123", "GetInventory", body);
+        await pipeline.TransformAsync("agent-1", "trace-abc-123", "GetInventory", body, null);
 
         await _privacyFilter.Received(1).ScrubAsync(Arg.Any<Stream>());
     }
@@ -29,11 +29,11 @@ public class ResponseTransformPipelineTests
     [Fact]
     public async Task RecordsUsage_AfterScrub()
     {
-        var body = new MemoryStream("response body"u8.ToArray());
+        MemoryStream body = new("response body"u8.ToArray());
         _privacyFilter.ScrubAsync(Arg.Any<Stream>()).Returns("response body");
 
         var pipeline = CreatePipeline();
-        await pipeline.TransformAsync("agent-1", "trace-abc-123", "GetInventory", body);
+        await pipeline.TransformAsync("agent-1", "trace-abc-123", "GetInventory", body, null);
 
         await _budgetEngine.Received(1).RecordUsageAsync("agent-1", Arg.Any<int>());
     }
@@ -41,15 +41,16 @@ public class ResponseTransformPipelineTests
     [Fact]
     public async Task FiresTraceEvent_WithCorrectIds()
     {
-        var body = new MemoryStream("response body"u8.ToArray());
+        MemoryStream body = new("response body"u8.ToArray());
         _privacyFilter.ScrubAsync(Arg.Any<Stream>()).Returns("response body");
 
         var pipeline = CreatePipeline();
-        await pipeline.TransformAsync("agent-1", "trace-abc-123", "GetInventory", body);
+        await pipeline.TransformAsync("agent-1", "trace-abc-123", "GetInventory", body, null);
 
-        await _traceNotifier.Received(1).NotifyAsync(
-            Arg.Is<AgentTraceEvent>(e =>
-              e.AgentId == "agent-1" &&
-              e.TraceId == "trace-abc-123"));
+        await _traceNotifier
+            .Received(1)
+            .NotifyAsync(
+                Arg.Is<AgentTraceEvent>(e => e.AgentId == "agent-1" && e.TraceId == "trace-abc-123")
+            );
     }
 }

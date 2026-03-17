@@ -1,11 +1,11 @@
+using System.Security.Cryptography;
+using System.Text;
 using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Gateway.Identity;
 using LanguageExt;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Ithil.Gateway.Tests.Identity;
 
@@ -15,7 +15,7 @@ public class ApiKeyIdentityResolverTests
 
     private static HttpContext ContextWithKey(string key)
     {
-        var ctx = new DefaultHttpContext();
+        DefaultHttpContext ctx = new();
         ctx.Request.Headers["X-Api-Key"] = key;
         return ctx;
     }
@@ -28,7 +28,9 @@ public class ApiKeyIdentityResolverTests
     {
         _repo.FindByHashedKeyAsync(Arg.Any<string>()).Returns(Option<string>.Some("agent-01"));
 
-        var result = await new ApiKeyIdentityResolver(_repo).TryResolveAsync(ContextWithKey("my-row-key"));
+        var result = await new ApiKeyIdentityResolver(_repo).TryResolveAsync(
+            ContextWithKey("my-row-key")
+        );
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be("agent-01"));
@@ -39,7 +41,9 @@ public class ApiKeyIdentityResolverTests
     {
         _repo.FindByHashedKeyAsync(Arg.Any<string>()).Returns(Option<String>.None);
 
-        var result = await new ApiKeyIdentityResolver(_repo).TryResolveAsync(ContextWithKey("unknown-key"));
+        var result = await new ApiKeyIdentityResolver(_repo).TryResolveAsync(
+            ContextWithKey("unknown-key")
+        );
 
         result.IsNone.Should().BeTrue();
     }

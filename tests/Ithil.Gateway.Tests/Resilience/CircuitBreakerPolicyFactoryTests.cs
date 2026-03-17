@@ -1,3 +1,4 @@
+using System.Net;
 using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
@@ -5,7 +6,6 @@ using Ithil.Gateway.Resilience;
 using NSubstitute;
 using Polly;
 using Polly.CircuitBreaker;
-using System.Net;
 
 namespace Ithil.Gateway.Tests.Resilience;
 
@@ -17,7 +17,7 @@ public class CircuitBreakerPolicyFactoryTests
         MinimumThroughput = 5,
         FailureRatio = 1.0,
         SamplingDuration = TimeSpan.FromSeconds(10),
-        BreakDuration = TimeSpan.FromMilliseconds(500)
+        BreakDuration = TimeSpan.FromMilliseconds(500),
     };
 
     private readonly ITraceNotifier _notifier = Substitute.For<ITraceNotifier>();
@@ -29,9 +29,12 @@ public class CircuitBreakerPolicyFactoryTests
         ValueTask.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
 
     private static ValueTask<HttpResponseMessage> Failure() =>
-        new (Task.FromException<HttpResponseMessage>(new HttpRequestException("downstream down")));
+        new(Task.FromException<HttpResponseMessage>(new HttpRequestException("downstream down")));
 
-    private static async Task TriggerFailures(ResiliencePipeline<HttpResponseMessage> pipeline, int count)
+    private static async Task TriggerFailures(
+        ResiliencePipeline<HttpResponseMessage> pipeline,
+        int count
+    )
     {
         for (var i = 0; i < count; i++)
         {
@@ -67,7 +70,7 @@ public class CircuitBreakerPolicyFactoryTests
         var result2 = await pipeline.ExecuteAsync(_ => Success());
         result2.StatusCode.Should().Be(HttpStatusCode.OK);
     }
-    
+
     [Fact]
     public async Task CircuitBreaker_Reopens_AfterFailedProbe()
     {
@@ -89,8 +92,9 @@ public class CircuitBreakerPolicyFactoryTests
         var pipeline = BuildPipeline();
         await TriggerFailures(pipeline, 5);
 
-        await _notifier.Received(1).NotifyAsync(
-            Arg.Is<AgentTraceEvent>(e => e.CircuitState == "open"));
+        await _notifier
+            .Received(1)
+            .NotifyAsync(Arg.Is<AgentTraceEvent>(e => e.CircuitState == "open"));
     }
 
     [Fact]
@@ -102,14 +106,15 @@ public class CircuitBreakerPolicyFactoryTests
         await Task.Delay(500);
         await pipeline.ExecuteAsync(_ => Success());
 
-        await _notifier.Received(1).NotifyAsync(
-            Arg.Is<AgentTraceEvent>(e => e.CircuitState == "closed"));
+        await _notifier
+            .Received(1)
+            .NotifyAsync(Arg.Is<AgentTraceEvent>(e => e.CircuitState == "closed"));
     }
 
     [Fact]
     public void CircuitBrerakerOpotins_DefaultValues()
     {
-        var defaults = new CircuitBreakerOptions();
+        CircuitBreakerOptions defaults = new();
 
         defaults.MinimumThroughput.Should().Be(5);
         defaults.FailureRatio.Should().Be(1.0);

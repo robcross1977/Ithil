@@ -1,18 +1,20 @@
+using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Transforms;
 using LanguageExt;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
-using FluentAssertions;
 
 namespace Ithil.Gateway.Tests;
 
 public class RequestTransformPipelineTests
 {
-    private readonly IAgentIdentityService _identityService = Substitute.For<IAgentIdentityService>();
+    private readonly IAgentIdentityService _identityService =
+        Substitute.For<IAgentIdentityService>();
     private readonly IBudgetEngine _budgetEngine = Substitute.For<IBudgetEngine>();
-    private readonly IToolAllowlistService _allowListService = Substitute.For<IToolAllowlistService>();
+    private readonly IToolAllowlistService _allowListService =
+        Substitute.For<IToolAllowlistService>();
     private readonly ITraceIdFactory _traceIdFactory = Substitute.For<ITraceIdFactory>();
     private readonly ITraceNotifier _traceNotifier = Substitute.For<ITraceNotifier>();
 
@@ -22,11 +24,12 @@ public class RequestTransformPipelineTests
     [Fact]
     public async Task ReturnsUnauthorized_WhenAgentNotResolved()
     {
-        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+        _identityService
+            .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.None);
 
         var pipeline = CreatePipeline();
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
 
         await pipeline.TransformAsync(context);
 
@@ -37,13 +40,14 @@ public class RequestTransformPipelineTests
     public async Task ReturnsTooManyRequests_WhenBudgetExceeded()
     {
         const string agentId = "agent-1";
-        var identity = new AgentIdentity { AgentId = agentId, Label = "test-agent" };
-        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+        AgentIdentity identity = new() { AgentId = agentId, Label = "test-agent" };
+        _identityService
+            .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
         _budgetEngine.IsWithinBudgetAsync(agentId).Returns(false);
 
         var pipeline = CreatePipeline();
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
 
         await pipeline.TransformAsync(context);
 
@@ -54,14 +58,15 @@ public class RequestTransformPipelineTests
     public async Task ReturnsForbidden_WhenToolNotAllowed()
     {
         const string agentId = "agent-1";
-        var identity = new AgentIdentity { AgentId = agentId, Label = "test-agent" };
-        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+        AgentIdentity identity = new() { AgentId = agentId, Label = "test-agent" };
+        _identityService
+            .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
         _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
         _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(false);
 
         var pipeline = CreatePipeline();
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Path = "/tools/GetInventory";
 
         await pipeline.TransformAsync(context);
@@ -75,15 +80,16 @@ public class RequestTransformPipelineTests
         const string agentId = "agent-1";
         const string traceId = "trace-abc-123";
 
-        var identity = new AgentIdentity { AgentId = agentId, Label = "test-agent" };
-        _identityService.ResolveAgentAsync(Arg.Any<HttpContext>())
+        AgentIdentity identity = new() { AgentId = agentId, Label = "test-agent" };
+        _identityService
+            .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
         _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
         _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(true);
         _traceIdFactory.Create().Returns(traceId);
 
         var pipeline = CreatePipeline();
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Path = "/tools/GetInventory";
 
         await pipeline.TransformAsync(context);

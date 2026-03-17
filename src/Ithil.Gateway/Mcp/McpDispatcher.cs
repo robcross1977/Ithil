@@ -12,6 +12,8 @@ public class McpDispatcher
     private readonly IToolRegistry _toolRegistry;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ToolRegistryOptions _options;
+    private readonly ISemanticCache _semanticCache;
+    private readonly ITraceNotifier _traceNotifier;
 
     /// <summary>
     /// Initializes the dispatcher with the services handlers need to process tool requests.
@@ -19,11 +21,15 @@ public class McpDispatcher
     public McpDispatcher(
         IToolRegistry toolRegistry,
         IHttpClientFactory httpClientFactory,
-        ToolRegistryOptions options)
+        ToolRegistryOptions options,
+        ISemanticCache semanticCache,
+        ITraceNotifier traceNotifier)
     {
         _toolRegistry = toolRegistry;
         _httpClientFactory = httpClientFactory;
         _options = options;
+        _semanticCache = semanticCache;
+        _traceNotifier = traceNotifier;
     }
 
     /// <summary>
@@ -52,5 +58,5 @@ public class McpDispatcher
         await ToolsListHandler.HandleAsync(request, _toolRegistry);
 
     private async Task<JsonRpcResponse?> DispatchToolsCall(JsonRpcRequest request) =>
-        await ToolsCallHandler.HandleAsync(request, _toolRegistry, _httpClientFactory, _options);
+        await ToolsCallHandler.HandleAsync(request, _toolRegistry, _httpClientFactory, _options, _semanticCache, _traceNotifier);
 }

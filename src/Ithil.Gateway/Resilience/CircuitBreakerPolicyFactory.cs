@@ -22,10 +22,11 @@ internal static class CircuitBreakerPolicyFactory
         CircuitBreakerOptions options,
         ITraceNotifier notifier,
         string agentId,
-        string toolName) =>
-            new ResiliencePipelineBuilder<HttpResponseMessage>()
-                .AddCircuitBreaker(CreateStrategyOptions(options, notifier, agentId, toolName))
-                .Build();
+        string toolName
+    ) =>
+        new ResiliencePipelineBuilder<HttpResponseMessage>()
+            .AddCircuitBreaker(CreateStrategyOptions(options, notifier, agentId, toolName))
+            .Build();
 
     /// <summary>
     /// Builds the circuit breaker strategy options for use with AddResilienceHandler or directly.
@@ -34,43 +35,50 @@ internal static class CircuitBreakerPolicyFactory
         CircuitBreakerOptions options,
         ITraceNotifier notifier,
         string agentId,
-        string toolName) =>
-    new CircuitBreakerStrategyOptions<HttpResponseMessage>
-    {
-        MinimumThroughput = options.MinimumThroughput,
-        FailureRatio = options.FailureRatio,
-        SamplingDuration = options.SamplingDuration,
-        BreakDuration = options.BreakDuration,
-
-        // Treat any exception as a failure
-        ShouldHandle = new PredicateBuilder<HttpResponseMessage>().Handle<Exception>(),
-
-        OnOpened = _ =>
+        string toolName
+    ) =>
+        new CircuitBreakerStrategyOptions<HttpResponseMessage>
         {
-            notifier.NotifyAsync(new AgentTraceEvent
+            MinimumThroughput = options.MinimumThroughput,
+            FailureRatio = options.FailureRatio,
+            SamplingDuration = options.SamplingDuration,
+            BreakDuration = options.BreakDuration,
+
+            // Treat any exception as a failure
+            ShouldHandle = new PredicateBuilder<HttpResponseMessage>().Handle<Exception>(),
+
+            OnOpened = _ =>
             {
-                TraceId = Guid.NewGuid().ToString("N"),
-                AgentId = agentId,
-                ToolName = toolName,
-                Status = "circuit-open",
-                CircuitState = "open"
-            });
+                notifier.NotifyAsync(
+                    new AgentTraceEvent
+                    {
+                        TraceId = Guid.NewGuid().ToString("N"),
+                        AgentId = agentId,
+                        ToolName = toolName,
+                        Status = "circuit-open",
+                        CircuitState = "open",
+                        Timestamp = DateTime.UtcNow.ToString("O"),
+                    }
+                );
 
-            return ValueTask.CompletedTask;
-        },
+                return ValueTask.CompletedTask;
+            },
 
-        OnClosed = _ =>
-        {
-            notifier.NotifyAsync(new AgentTraceEvent
+            OnClosed = _ =>
             {
-                TraceId = Guid.NewGuid().ToString("N"),
-                AgentId = agentId,
-                ToolName = toolName,
-                Status = "circuit-closed",
-                CircuitState = "closed"
-            });
+                notifier.NotifyAsync(
+                    new AgentTraceEvent
+                    {
+                        TraceId = Guid.NewGuid().ToString("N"),
+                        AgentId = agentId,
+                        ToolName = toolName,
+                        Status = "circuit-closed",
+                        CircuitState = "closed",
+                        Timestamp = DateTime.UtcNow.ToString("O"),
+                    }
+                );
 
-            return ValueTask.CompletedTask;
-        }
-    };
+                return ValueTask.CompletedTask;
+            },
+        };
 }
