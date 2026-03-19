@@ -6,6 +6,30 @@ A structured, append-only record of every agent request that flows through the g
 
 The audit log is the compliance and forensics layer — it answers questions like "which agent accessed patient records on Feb 21st?" long after the real-time trace feed has moved on.
 
+**`StdoutAuditSink` is on by default.** Operators who configure nothing still get a structured
+JSON Lines record on stdout, which any log aggregator (Datadog, Splunk, ELK, Loki) picks up
+automatically. This is the right default for a governance tool — visibility should require
+opt-out, not opt-in. Operators who do not want stdout output can disable it explicitly via
+`options.Audit.DisableStdoutSink = true`.
+
+---
+
+## Output Channel Separation
+
+Ithil has three distinct output channels and they must stay separate:
+
+| Channel | Purpose | Default |
+|---|---|---|
+| `ITraceNotifier` → SignalR | Live real-time feed for the dashboard | Always on |
+| `IAuditLogger` → sinks | Durable structured record for compliance and aggregators | StdoutSink on by default |
+| `ILogger` → application log | Gateway internals — problems only | Standard ASP.NET behaviour |
+
+`ITraceNotifier.NotifyAsync` must **never** write to `ILogger` for normal trace events.
+The audit log is the product's logging mechanism. If both channels wrote the same events to
+the application log, operators would have two overlapping records with no clear authoritative
+source. If the SignalR broadcast itself fails, that failure is worth logging. Normal events
+are not.
+
 ---
 
 ## Flow
@@ -33,6 +57,10 @@ flowchart TD
 - [ ] If all sinks fail, a fallback write to `stderr` ensures no record is silently lost
 - [ ] Sinks are pluggable via DI — adding a new sink doesn't change `AuditLogger`
 - [ ] Log format is valid JSON Lines (one complete JSON object per newline)
+- [ ] `StdoutAuditSink` is registered by default when `UseIthilGateway()` is called — no configuration required
+- [ ] Operators can disable the stdout sink via `options.Audit.DisableStdoutSink = true`
+- [ ] A `README.md` exists in `Ithil.Management/Audit/` explaining why stdout is on by default, how to disable it, and how to add additional sinks
+- [ ] `ITraceNotifier.NotifyAsync` does not write to `ILogger` for normal trace events — only for broadcast failures
 
 ---
 
@@ -68,11 +96,18 @@ Ithil.Management/
     │       ├── bool PiiScrubbed
     │       └── string? ErrorMessage
     │
+    ├── AuditOptions.cs
+    │   └── class AuditOptions
+    │       └── bool DisableStdoutSink   (default: false)
+    │
+    ├── README.md                        -- REQUIRED: explains default-on stdout sink,
+    │                                       how to disable it, and how to register custom sinks
+    │
     └── Sinks/
         ├── IAuditSink.cs
         │   └── WriteAsync(AuditRecord record) → Task
         │
-        ├── StdoutAuditSink.cs     → Writes JSON line to stdout
+        ├── StdoutAuditSink.cs     → Writes JSON line to stdout (registered by default)
         ├── FileAuditSink.cs       → Appends JSON line to a rolling file
         └── ApplicationInsightsSink.cs → Writes as custom event to AppInsights
 
@@ -120,6 +155,14 @@ Tests live in `Ithil.Management.Tests/Audit/`.
 ### Test: FileAuditSink_AppendsToFile_NotOverwrites
 - Write two records
 - Assert both records appear in the output file, each on its own line
+
+### Test: StdoutAuditSink_IsRegisteredByDefault
+- Build a minimal `IServiceCollection` using `UseIthilGateway()` with no audit options set
+- Assert that an `IAuditSink` of type `StdoutAuditSink` is registered
+
+### Test: StdoutAuditSink_IsNotRegistered_WhenDisabled
+- Configure `options.Audit.DisableStdoutSink = true`
+- Assert that no `StdoutAuditSink` is registered in the container
 
 ### Test: AuditRecord_Parameters_ArePiiScrubbed
 - Parameters contain an email address

@@ -62,18 +62,18 @@ A Roslyn Source Generator picks these up at compile time and produces an MCP-com
 | Circuit Breaker | Polly circuit breaker for downstream failure protection |
 | SignalR Tracing | Real-time hub broadcasting tool call events to the dashboard |
 | Audit Log | Structured JSON audit trail (agent, tool, params, outcome, latency) |
-| Dashboard | Next.js 15 management UI (tool library, agent registry, live feed) |
+| Dashboard | Blazor Server management UI — mount via `app.UseIthilDashboard()`, no separate deploy |
 
 ---
 
 ## Tech Stack
 
-- **Gateway:** C# / .NET 9+, YARP, Polly, LanguageExt
+- **Gateway:** C# / .NET 10+, YARP, Polly, LanguageExt
 - **Real-time:** SignalR
 - **Cache / Budget:** Redis (Redis Stack with vector search)
 - **Auth:** OIDC / JWT, API Keys
 - **Source Gen:** Roslyn Incremental Source Generators
-- **Dashboard:** TypeScript / Next.js 15, Tailwind CSS v4, Shadcn/UI
+- **Dashboard:** Blazor Server, MudBlazor — embedded as a Razor Class Library
 - **Infrastructure:** Docker, Azure
 
 ---
@@ -111,15 +111,22 @@ This project is currently in the **design and planning phase**. No source code h
 
 ---
 
-## Pricing
+## License
 
-| Tier | Price | Requests/Month |
+Ithil is licensed under the [Business Source License 1.1](./LICENSE) (BUSL-1.1).
+
+- **Non-commercial use** (personal projects, open-source, evaluation, internal development) is **free**.
+- **Commercial production use** requires a commercial license from Crossland Creative LLC.
+- On **2033-04-17** the license converts to Apache 2.0 — permanently and irrevocably open source.
+
+| Tier | Price | What You Get |
 |---|---|---|
-| Developer | Free (OSS, self-host) | 10k |
-| Startup | $199/mo | 500k |
-| Professional | $999/mo | 5M |
-| Enterprise Self-Hosted | $500/mo | Unlimited |
-| Cloud Consumption | $0.01/request | Pay-as-you-go |
+| Non-Commercial | Free | Full code under BUSL. Self-host. No commercial use. |
+| Commercial Small | $149/mo or $1,490/yr | Commercial license, self-host, best-effort email support. |
+| Commercial Business | $499/mo or $4,990/yr | Commercial license, self-host, 48h response SLA. |
+| Enterprise | Contact | Custom contract and SLA negotiated per customer. |
+
+For commercial licensing enquiries, contact Crossland Creative LLC.
 
 ---
 

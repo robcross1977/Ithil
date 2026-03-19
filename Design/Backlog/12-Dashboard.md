@@ -1,10 +1,52 @@
-# Feature: Developer Dashboard (Next.js)
+# Feature: Developer Dashboard (Blazor Server)
 
 ## What It Is
 
-A TypeScript / Next.js 15 web application that gives developers visibility and control over the gateway. It shows registered agents, their budgets, the tool library, and a live real-time feed of all agent activity.
+An operator dashboard embedded directly in the Gateway as a Razor Class Library (RCL).
+Consumers opt in by calling `app.UseIthilDashboard()` — no separate container, no Node.js,
+no build step. The dashboard is a devops tool for the engineers and operators running the
+Gateway, not a public-facing application.
 
-The "killer feature" is the Tool Tester: a form-based playground that lets developers call any tool directly through the gateway, see the raw response, and confirm everything is wired up before deploying real agents.
+Dashboard v1 scope is the **live operational view**: what is happening right now, which
+agents are active, circuit breaker states, and budget burn. Compliance query (paginated
+audit log search with filters) is explicitly phase two and out of scope here.
+
+---
+
+## Technology Decisions
+
+| Decision | Choice | Reason |
+|---|---|---|
+| UI framework | Blazor Server | .NET teams evaluating Ithil should not need Node.js tooling to extend or contribute to the dashboard |
+| Component system | MudBlazor | Covers tables, badges, tabs, layout — no custom component primitives needed |
+| Charts | Chart.js via JS interop | Well-established pattern; does not require abandoning Blazor for the rest of the UI |
+| Delivery | Razor Class Library with embedded static assets | Installs as a NuGet package; consumers call one middleware extension method |
+| Auth | Reuse existing Gateway JWT / API key middleware | No new auth system; dashboard routes are additional paths in the same pipeline |
+
+---
+
+## Functional Programming Boundary
+
+Blazor components are stateful and imperative by nature. The resolution is a strict
+boundary: **components are view-only shells.** All filtering, aggregation, state
+transitions, and validation live in pure C# service classes returning `Either<DashboardError, T>`
+or `Option<T>`. The component calls the service, pattern-matches the result, and renders.
+
+The 75-line file limit applies: split each component into a `.razor` template and a
+`.razor.cs` code-behind. If the code-behind is long, the logic belongs in a service.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Browser] -->|Blazor Server / SignalR circuit| B[Ithil.Dashboard RCL]
+    B -->|Injected services| C[Ithil.Management\nAgent config, budget reads]
+    B -->|Injected services| D[Ithil.Core\nITraceNotifier subscription]
+    B -->|Static assets| E[wwwroot — embedded in RCL]
+    F[Consumer app.UseIthilDashboard] --> B
+```
 
 ---
 
@@ -12,28 +54,86 @@ The "killer feature" is the Tool Tester: a form-based playground that lets devel
 
 ```mermaid
 flowchart TD
-    A[Dashboard] --> B[/ Overview\nActive agents · request rate · cost today]
-    A --> C[/tools Tool Library\nAll discovered MCP tools]
-    C --> D[/tools/name Tool Detail\nSchema · telemetry · Tester]
-    A --> E[/agents Agent Registry\nCreate · manage identities & budgets]
-    E --> F[/agents/id Agent Detail\nBudget gauge · allowed tools · recent traces]
-    A --> G[/trace Live Trace Feed\nSignalR real-time stream]
-    A --> H[/settings Gateway Config\nPrivacy rules · circuit breaker thresholds]
+    A[Dashboard] --> B[/ Overview\nActive agents · request rate · budget burn today]
+    A --> C[/trace Live Trace Feed\nReal-time SignalR event stream]
+    A --> D[/circuit Circuit Breakers\nState per cluster — closed / open / half-open]
+    A --> E[/budget Budget Overview\nPer-agent token burn and daily limits]
+    A --> F[/agents Agent Management\nCRUD for agent configuration]
+    C --> G[Unidentified Traffic View\nDedicated section for requests with no resolved AgentId]
 ```
 
 ---
 
-## Data Flow
+## Scaling and Multi-Instance Deployments
 
-```mermaid
-flowchart LR
-    A[Next.js Dashboard] -->|REST GET| B[Management API\n/management/*]
-    A -->|WebSocket| C[SignalR Hub\n/hubs/trace]
-    A -->|MCP POST| D[Gateway /mcp\nfor Tool Tester]
+Blazor Server holds an open SignalR circuit per connected client. For an internal operator
+tool with 5–20 concurrent users this is not a scaling concern. The concern that affects
+general web apps (thousands of concurrent users) does not apply here.
 
-    B -->|Agent list, tool list,\nbudget status| A
-    C -->|Live trace events| A
-    D -->|Tool execution results| A
+The real multi-instance risk is the TraceHub: if two Gateway instances are running behind
+a load balancer, a trace event fired on instance A is only broadcast to clients connected
+to instance A. Clients on instance B see a partial feed.
+
+Two supported solutions, in order of preference:
+
+**Option 1 — Redis backplane (recommended for production)**
+Wire `Microsoft.AspNetCore.SignalR.StackExchangeRedis` into the SignalR configuration.
+Every broadcast is published to Redis; all instances subscribe and fan out to their local
+clients. StackExchange.Redis is already a Gateway dependency.
+
+**Option 2 — Sticky sessions (simpler, no extra infrastructure)**
+Configure the load balancer to pin each client to one Gateway instance for the duration
+of their session. Less robust under instance failure but requires no additional config.
+
+> **Required:** A `README.md` must exist in `Ithil.Dashboard/Hubs/` explaining the
+> backplane problem, both solutions, and how to configure each. This is a hard requirement
+> — any developer who touches the hub code must be able to understand the multi-instance
+> behavior without researching it externally.
+
+Under high agent traffic volume, the hub should support **event sampling / rate limiting**:
+batching or sampling trace events rather than broadcasting every one. This keeps the
+dashboard usable under load and is a configuration option, not a default restriction.
+
+---
+
+## Unidentified Traffic
+
+Requests where `AgentIdentity` resolution fails arrive with a null or missing `AgentId`.
+This must be treated as a first-class event type, not noise. The trace feed must have a
+dedicated section or filter for unidentified traffic. A blank cell in the agent column is
+not acceptable — operators need to see these events prominently because they may indicate
+a misconfigured client, a leaked key being probed, or a scanning attempt.
+
+---
+
+## Project Structure
+
+```
+src/
+└── Ithil.Dashboard/
+    ├── Ithil.Dashboard.csproj          -- Razor Class Library, targets net10.0
+    ├── DashboardMiddlewareExtensions   -- app.UseIthilDashboard() entry point
+    ├── Hubs/
+    │   ├── DashboardHubConnection      -- wraps TraceHub subscription logic
+    │   └── README.md                   -- REQUIRED: backplane explanation for future devs
+    ├── Pages/
+    │   ├── Overview.razor / .razor.cs
+    │   ├── TraceFeed.razor / .razor.cs
+    │   ├── CircuitBreakers.razor / .razor.cs
+    │   ├── BudgetOverview.razor / .razor.cs
+    │   └── Agents.razor / .razor.cs
+    ├── Components/
+    │   ├── TraceEventRow.razor / .razor.cs
+    │   ├── UnidentifiedTrafficRow.razor / .razor.cs
+    │   ├── CircuitStateIndicator.razor / .razor.cs
+    │   ├── BudgetGauge.razor / .razor.cs
+    │   └── LatencyChart.razor / .razor.cs  -- JS interop
+    ├── Services/
+    │   ├── TraceFeedService.cs         -- pure; filters, aggregates, returns Option/Either
+    │   ├── BudgetDashboardService.cs   -- pure; reads budget state, returns Either
+    │   ├── CircuitDashboardService.cs  -- pure; maps Polly state to view model
+    │   └── AgentManagementService.cs   -- pure; CRUD against IAgentRepository
+    └── wwwroot/                        -- embedded static assets
 ```
 
 ---
@@ -41,129 +141,69 @@ flowchart LR
 ## Acceptance Criteria
 
 ### General
-- [ ] All pages are server-rendered where possible (Next.js App Router, `async` components)
-- [ ] Auth-protected pages redirect to login if no session
-- [ ] Package manager is `bun`
+- [ ] Mounted via `app.UseIthilDashboard()` — nothing appears if the call is absent
+- [ ] All dashboard routes require the same JWT / API key auth the Gateway already validates
+- [ ] No separate container, Node.js toolchain, or build step required by the consumer
+- [ ] `README.md` exists in `Hubs/` explaining the SignalR backplane problem and both configuration options
 
-### Tool Library (`/tools`)
-- [ ] Lists all tools from `/.well-known/mcp`
-- [ ] Groups tools by `category` if present
-- [ ] Shows health status badge per tool (healthy / degraded / offline)
-- [ ] Clicking a tool navigates to the detail page
-
-### Tool Detail (`/tools/[name]`)
-- [ ] Displays: name, description, required scopes, AllowWrite badge, MaxResponseTokens
-- [ ] Displays live telemetry: last used, usage count, avg latency, error rate
-- [ ] Tool Tester renders input fields from the tool's JSON Schema
-- [ ] Required fields show a `*` marker
-- [ ] Tool Tester `Execute` button calls `POST /mcp` with `method: "tools/call"` using `X-Agent-Mode: test-manual`
-- [ ] Response is displayed as formatted JSON
-- [ ] Execution latency is shown after each test run
-
-### Agent Registry (`/agents`)
-- [ ] Lists all agents with: ID, label, budget used/total, active status
-- [ ] "New Agent" button opens a form: label, daily token budget, allowed tools (multi-select)
-- [ ] Saving creates the agent via `POST /management/agents`
-- [ ] Agent API key is shown once after creation and cannot be retrieved again
-
-### Agent Detail (`/agents/[id]`)
-- [ ] Budget gauge shows `tokensUsedToday / dailyBudget` as a progress bar
-- [ ] Budget gauge updates live via SignalR
-- [ ] Table of recent trace events for this agent (last 50)
-- [ ] "Revoke Agent" button calls `DELETE /management/agents/{id}` with a confirmation dialog
+### Overview (`/`)
+- [ ] Shows count of active agents, request rate (last 60s), and total token spend today
+- [ ] Data refreshes on a configurable interval (default 10s)
 
 ### Live Trace Feed (`/trace`)
-- [ ] Connects to SignalR hub on mount, disconnects on unmount
-- [ ] Events appear at the top of the feed (newest first)
-- [ ] Feed is capped at 200 visible entries
-- [ ] Blocked/error events are visually distinct (red tint)
-- [ ] Each event shows: timestamp, agentId, toolName, status, tokensUsed, latencyMs
+- [ ] Connects to TraceHub on page load, disconnects on navigation away
+- [ ] Events appear newest-first, capped at a configurable ring buffer size (default 200)
+- [ ] Blocked and error events are visually distinct from successful events
+- [ ] Each event shows: timestamp, agentId (or "Unidentified"), toolName, status, tokensUsed, latencyMs, circuitState
+- [ ] Unidentified traffic (null agentId) appears in a dedicated, visually distinct section — not mixed silently into the main feed
+- [ ] A filter control allows narrowing the feed by agentId or status
+
+### Circuit Breakers (`/circuit`)
+- [ ] Shows one row per monitored cluster
+- [ ] Each row displays the current Polly state: Closed, Open, or HalfOpen
+- [ ] HalfOpen state is visually distinct and labelled — it is not treated as Open
+- [ ] Last state-change timestamp is shown per cluster
+
+### Budget Overview (`/budget`)
+- [ ] Lists all agents with: daily budget, tokens used today, percentage consumed
+- [ ] Budget gauge shows a warning color when consumption exceeds a configurable threshold (default 80%)
+- [ ] Values update live via SignalR when a new trace event arrives with token data
+
+### Agent Management (`/agents`)
+- [ ] Lists all registered agents with: ID, label, budget, active status
+- [ ] New Agent form: label, daily token budget, allowed tools (multi-select)
+- [ ] Agent API key is shown once after creation and cannot be retrieved again
+- [ ] Revoke Agent button calls delete with a confirmation dialog before acting
 
 ---
 
-## Files & Functions
+## Out of Scope (Phase Two)
 
-```
-dashboard/src/
-├── types/
-│   ├── mcp.ts
-│   │   ├── interface McpTool
-│   │   ├── interface AgentIdentity
-│   │   └── interface AgentTraceEvent
-│   │
-│   └── management.ts
-│       └── interface AgentConfig
-│
-├── app/
-│   ├── page.tsx                       → Overview page
-│   ├── tools/
-│   │   ├── page.tsx                   → Tool Library
-│   │   └── [name]/page.tsx            → Tool Detail
-│   ├── agents/
-│   │   ├── page.tsx                   → Agent Registry
-│   │   └── [id]/page.tsx              → Agent Detail
-│   ├── trace/page.tsx                 → Live Trace Feed
-│   └── settings/page.tsx              → Gateway Settings
-│
-├── components/
-│   ├── ToolTester.tsx                 → Form + execute button + response display
-│   ├── LiveTraceFeed.tsx              → SignalR-connected event list
-│   ├── BudgetGauge.tsx                → Progress bar component
-│   ├── ToolStatusBadge.tsx            → healthy/degraded/offline badge
-│   └── AgentCreateForm.tsx            → New agent form
-│
-├── lib/
-│   ├── signalr.ts                     → createTraceConnection() → HubConnection
-│   ├── management-api.ts              → getAgents(), createAgent(), deleteAgent(), getTools()
-│   └── mcp-client.ts                  → callTool(toolName, params) → Promise<unknown>
-│
-└── hooks/
-    ├── useTraceEvents.ts              → subscribes to SignalR, returns Seq<AgentTraceEvent>
-    └── useBudget.ts                   → polls GetUsageAsync, returns current usage
-```
+- Paginated audit log search with date/agent/outcome filters
+- Tool library and tool tester (may move here from a separate feature or remain separate)
+- Gateway settings management via the dashboard UI
 
 ---
 
 ## Unit Testing Plan
 
-Tests live in `dashboard/src/__tests__/`. Use Vitest + React Testing Library.
+Tests live in `Ithil.Dashboard.Tests/`.
 
-### Test: ToolTester_RendersInputsFromSchema
-- Provide a mock `McpTool` with 2 properties in `inputSchema`
-- Assert 2 input fields are rendered
+### TraceFeedService
+- `TraceFeedService_FiltersEventsByAgentId` — given 5 events for two agents, filtering by one agentId returns only that agent's events
+- `TraceFeedService_IdentifiesUnidentifiedTraffic` — events with null agentId are returned separately from identified traffic
+- `TraceFeedService_CapsBufferAtConfiguredSize` — adding events beyond the cap drops the oldest
 
-### Test: ToolTester_MarksRequiredFields
-- Tool has one required and one optional field
-- Assert required field has `*` marker, optional does not
+### CircuitDashboardService
+- `CircuitDashboardService_MapsClosedState` — Polly Closed maps to correct view model value
+- `CircuitDashboardService_MapsHalfOpenState` — Polly HalfOpen maps correctly and is not treated as Open
 
-### Test: ToolTester_CallsMcpClient_OnExecute
-- Mock `callTool`
-- Fill in inputs and click Execute
-- Assert `callTool` was called with correct tool name and params
+### BudgetDashboardService
+- `BudgetDashboardService_ReturnsWarning_WhenThresholdExceeded` — at 81% consumption with 80% threshold, returns warning state
+- `BudgetDashboardService_ReturnsSome_ForKnownAgent` — returns `Some` for a registered agent
+- `BudgetDashboardService_ReturnsNone_ForUnknownAgent` — returns `None` for an unrecognised agentId
 
-### Test: ToolTester_DisplaysResponse_AfterExecution
-- Mock `callTool` returns `{ quantity: 42 }`
-- Click Execute
-- Assert JSON `{ "quantity": 42 }` appears in the output area
-
-### Test: ToolTester_ShowsLatency_AfterExecution
-- Assert latency (in ms) is displayed after a successful call
-
-### Test: LiveTraceFeed_RendersEvents
-- Provide 3 mock `AgentTraceEvent` items
-- Assert all 3 are rendered
-
-### Test: LiveTraceFeed_ShowsRedTint_ForBlockedEvent
-- Provide an event with `status: "blocked"`
-- Assert the event row has a destructive/red styling
-
-### Test: LiveTraceFeed_ShowsRedTint_ForErrorEvent
-- Event with `status: "error"` also gets red/orange styling
-
-### Test: BudgetGauge_ShowsCorrectPercentage
-- Props: `used: 25000`, `total: 50000`
-- Assert the gauge shows 50%
-
-### Test: BudgetGauge_ShowsRedColor_WhenNearLimit
-- Props: `used: 47000`, `total: 50000` (94% used)
-- Assert the gauge changes to a warning color
+### AgentManagementService
+- `AgentManagementService_ReturnsRight_OnSuccessfulCreate`
+- `AgentManagementService_ReturnsLeft_WhenAgentIdAlreadyExists`
+- `AgentManagementService_ReturnsNone_WhenDeletingUnknownAgent`
