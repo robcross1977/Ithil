@@ -19,9 +19,57 @@ audit log search with filters) is explicitly phase two and out of scope here.
 |---|---|---|
 | UI framework | Blazor Server | .NET teams evaluating Ithil should not need Node.js tooling to extend or contribute to the dashboard |
 | Component system | MudBlazor | Covers tables, badges, tabs, layout — no custom component primitives needed |
-| Charts | Chart.js via JS interop | Well-established pattern; does not require abandoning Blazor for the rest of the UI |
+| Charts | None for v1 — raw numbers only | Removing Chart.js eliminates the only JS interop dependency. A latency chart is a nice-to-have; the number in the trace table is sufficient for operators. |
 | Delivery | Razor Class Library with embedded static assets | Installs as a NuGet package; consumers call one middleware extension method |
-| Auth | Reuse existing Gateway JWT / API key middleware | No new auth system; dashboard routes are additional paths in the same pipeline |
+| Auth | Login page issues session cookie after admin JWT validation | See Auth section below |
+
+---
+
+## Auth
+
+Blazor Server uses a persistent WebSocket circuit after the initial HTTP connection.
+Standard JWT bearer token auth (Authorization header) does not work for WebSocket frames
+— only the initial HTTP handshake can be authenticated via headers.
+
+**v1 approach: login page + session cookie.**
+
+The login page must be a standard Razor Page (`Login.cshtml`), not a Blazor component.
+A Blazor component cannot set an HTTP response cookie — it runs inside an already-established
+WebSocket circuit and can't modify response headers after the initial handshake.
+
+1. `GET /dashboard/login` — serves a plain HTML form with a single text field for the JWT
+2. `POST /dashboard/login` — standard Razor Page POST handler:
+   - Validates JWT (admin scope required) using the same JWT validation infrastructure
+   - On success: calls `HttpContext.SignInAsync` with a cookie scheme, redirects to `/dashboard`
+   - On failure: re-renders the form with an error message
+3. All other dashboard routes require the session cookie, enforced via
+   `[Authorize(Policy = "DashboardPolicy")]`
+4. The Blazor circuit inherits the `ClaimsPrincipal` from the initial authenticated HTTP
+   connection — this is standard Blazor Server behavior
+
+**Agent JWTs (no admin scope) must be rejected.** The `DashboardPolicy` requires
+`scope: admin`. An agent presenting a valid JWT without admin scope gets a 403 redirect
+to the login page.
+
+Cookie authentication must be registered alongside the existing JWT bearer scheme:
+```csharp
+builder.Services.AddAuthentication()
+    .AddCookie("DashboardCookie", options =>
+    {
+        options.LoginPath = "/dashboard/login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    });
+```
+
+```
+Ithil.Dashboard/
+└── Auth/
+    ├── DashboardAuthPolicy.cs    -- registers "DashboardPolicy": RequireAuthenticatedUser
+    │                                + RequireClaim("scope", "admin")
+    │                                + AuthenticationSchemes = "DashboardCookie"
+    └── Login.cshtml / Login.cshtml.cs  -- Razor Page: GET serves form, POST validates
+                                           JWT and issues cookie via SignInAsync
+```
 
 ---
 
@@ -90,10 +138,6 @@ of their session. Less robust under instance failure but requires no additional 
 > — any developer who touches the hub code must be able to understand the multi-instance
 > behavior without researching it externally.
 
-Under high agent traffic volume, the hub should support **event sampling / rate limiting**:
-batching or sampling trace events rather than broadcasting every one. This keeps the
-dashboard usable under load and is a configuration option, not a default restriction.
-
 ---
 
 ## Unidentified Traffic
@@ -122,17 +166,21 @@ src/
     │   ├── CircuitBreakers.razor / .razor.cs
     │   ├── BudgetOverview.razor / .razor.cs
     │   └── Agents.razor / .razor.cs
+    ├── Auth/
+    │   ├── DashboardAuthPolicy.cs      -- "DashboardPolicy": admin scope required
+    │   ├── Login.cshtml                -- Razor Page: GET serves form, POST validates JWT
+    │   └── Login.cshtml.cs             -- POST handler: SignInAsync → redirect to /dashboard
     ├── Components/
     │   ├── TraceEventRow.razor / .razor.cs
     │   ├── UnidentifiedTrafficRow.razor / .razor.cs
     │   ├── CircuitStateIndicator.razor / .razor.cs
-    │   ├── BudgetGauge.razor / .razor.cs
-    │   └── LatencyChart.razor / .razor.cs  -- JS interop
+    │   └── BudgetGauge.razor / .razor.cs
     ├── Services/
     │   ├── TraceFeedService.cs         -- pure; filters, aggregates, returns Option/Either
     │   ├── BudgetDashboardService.cs   -- pure; reads budget state, returns Either
     │   ├── CircuitDashboardService.cs  -- pure; maps Polly state to view model
-    │   └── AgentManagementService.cs   -- pure; CRUD against IAgentRepository
+    │   └── AgentDashboardService.cs    -- pure; CRUD against IAgentManagementService
+    │       Note: named AgentDashboardService to avoid collision with IAgentManagementService
     └── wwwroot/                        -- embedded static assets
 ```
 
@@ -142,17 +190,22 @@ src/
 
 ### General
 - [ ] Mounted via `app.UseIthilDashboard()` — nothing appears if the call is absent
-- [ ] All dashboard routes require the same JWT / API key auth the Gateway already validates
+- [ ] `GET /dashboard/login` serves a plain HTML form (Razor Page, not Blazor)
+- [ ] `POST /dashboard/login` with a valid admin JWT issues an `HttpOnly` session cookie and redirects to `/dashboard`
+- [ ] `POST /dashboard/login` with an agent JWT (no admin scope) re-renders the form with an error
+- [ ] `POST /dashboard/login` with an invalid JWT re-renders the form with an error
+- [ ] All dashboard routes (except `/dashboard/login`) require the session cookie with admin scope — unauthenticated requests redirect to `/dashboard/login`
+- [ ] Cookie auth scheme is registered in DI alongside the JWT bearer scheme
 - [ ] No separate container, Node.js toolchain, or build step required by the consumer
 - [ ] `README.md` exists in `Hubs/` explaining the SignalR backplane problem and both configuration options
 
 ### Overview (`/`)
 - [ ] Shows count of active agents, request rate (last 60s), and total token spend today
-- [ ] Data refreshes on a configurable interval (default 10s)
+- [ ] Data refreshes on a fixed 10s timer
 
 ### Live Trace Feed (`/trace`)
 - [ ] Connects to TraceHub on page load, disconnects on navigation away
-- [ ] Events appear newest-first, capped at a configurable ring buffer size (default 200)
+- [ ] Events appear newest-first, up to `options.Trace.BufferSize` events (default 500) — the same setting that controls the server-side ring buffer
 - [ ] Blocked and error events are visually distinct from successful events
 - [ ] Each event shows: timestamp, agentId (or "Unidentified"), toolName, status, tokensUsed, latencyMs, circuitState
 - [ ] Unidentified traffic (null agentId) appears in a dedicated, visually distinct section — not mixed silently into the main feed
@@ -166,8 +219,8 @@ src/
 
 ### Budget Overview (`/budget`)
 - [ ] Lists all agents with: daily budget, tokens used today, percentage consumed
-- [ ] Budget gauge shows a warning color when consumption exceeds a configurable threshold (default 80%)
-- [ ] Values update live via SignalR when a new trace event arrives with token data
+- [ ] Budget gauge shows a warning color when consumption exceeds 80%
+- [ ] Values refresh on the same 10s timer as the Overview page — no live SignalR subscription required on this page
 
 ### Agent Management (`/agents`)
 - [ ] Lists all registered agents with: ID, label, budget, active status
@@ -192,7 +245,7 @@ Tests live in `Ithil.Dashboard.Tests/`.
 ### TraceFeedService
 - `TraceFeedService_FiltersEventsByAgentId` — given 5 events for two agents, filtering by one agentId returns only that agent's events
 - `TraceFeedService_IdentifiesUnidentifiedTraffic` — events with null agentId are returned separately from identified traffic
-- `TraceFeedService_CapsBufferAtConfiguredSize` — adding events beyond the cap drops the oldest
+- `TraceFeedService_CapsBufferAtConfiguredSize` — adding events beyond `options.Trace.BufferSize` drops the oldest
 
 ### CircuitDashboardService
 - `CircuitDashboardService_MapsClosedState` — Polly Closed maps to correct view model value
@@ -203,7 +256,6 @@ Tests live in `Ithil.Dashboard.Tests/`.
 - `BudgetDashboardService_ReturnsSome_ForKnownAgent` — returns `Some` for a registered agent
 - `BudgetDashboardService_ReturnsNone_ForUnknownAgent` — returns `None` for an unrecognised agentId
 
-### AgentManagementService
-- `AgentManagementService_ReturnsRight_OnSuccessfulCreate`
-- `AgentManagementService_ReturnsLeft_WhenAgentIdAlreadyExists`
-- `AgentManagementService_ReturnsNone_WhenDeletingUnknownAgent`
+### AgentDashboardService
+- `AgentDashboardService_ReturnsRight_OnSuccessfulCreate`
+- `AgentDashboardService_ReturnsNone_WhenDeletingUnknownAgent`

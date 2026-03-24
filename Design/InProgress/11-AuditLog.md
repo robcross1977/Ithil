@@ -2,7 +2,7 @@
 
 ## What It Is
 
-A structured, append-only record of every agent request that flows through the gateway. Written as JSON lines (one JSON object per line) and pluggable into any sink: Azure Monitor, Datadog, Splunk, or a local file.
+A structured, append-only record of every agent request that flows through the gateway. Written as JSON lines (one JSON object per line) and pluggable into any sink via DI.
 
 The audit log is the compliance and forensics layer — it answers questions like "which agent accessed patient records on Feb 21st?" long after the real-time trace feed has moved on.
 
@@ -38,10 +38,8 @@ are not.
 flowchart TD
     A[Request completes in\nresponse transform pipeline] --> B[AuditLogger.WriteAsync\nAuditRecord]
     B --> C{Which sinks are configured?}
-    C -->|Azure Monitor| D[Write to ApplicationInsights\ncustom event]
-    C -->|File| E[Append JSON line\nto rolling log file]
-    C -->|Stdout| F[Write JSON to stdout\npicked up by log aggregator]
-    C -->|Multiple| G[Write to all\nconfigured sinks]
+    C -->|Stdout - default| D[Write JSON line to stdout\npicked up by log aggregator]
+    C -->|Multiple custom sinks| E[Write to all configured\nsinks via IAuditSink]
 ```
 
 ---
@@ -50,6 +48,9 @@ flowchart TD
 
 - [ ] Every completed request (success or error) produces exactly one audit record
 - [ ] Blocked requests (budget exceeded, tool not allowed) also produce an audit record
+      Note: blocked requests exit the pipeline before the response transform runs.
+      `IBudgetMiddleware` and the tool allowlist check must call `IAuditLogger.WriteAsync`
+      directly on their rejection paths — they cannot rely on the pipeline to do it.
 - [ ] Cache hits produce an audit record with `cacheHit: true` and no `latencyMs` for the downstream call
 - [ ] Audit record includes: `timestamp`, `traceId`, `agentId`, `toolName`, `parameters`, `outcome`, `tokensUsed`, `latencyMs`, `cacheHit`, `piiScrubbed`
 - [ ] `parameters` in the audit record must have PII already scrubbed (same filter as response body)
@@ -89,12 +90,14 @@ Ithil.Management/
     │       ├── string AgentId
     │       ├── string ToolName
     │       ├── object Parameters       (PII-scrubbed)
-    │       ├── string Outcome          ("success"|"error"|"blocked"|"cache-hit")
+    │       ├── string Outcome          ("success"|"error"|"blocked"|"cache-hit"|"budget-reset")
     │       ├── int? TokensUsed
     │       ├── int? LatencyMs
     │       ├── bool CacheHit
     │       ├── bool PiiScrubbed
-    │       └── string? ErrorMessage
+    │       ├── string? ErrorMessage
+    │       └── string? OperatorId      -- set on "budget-reset" records only; null otherwise
+    │                                      Identifies the admin who performed a manual action
     │
     ├── AuditOptions.cs
     │   └── class AuditOptions
@@ -107,9 +110,9 @@ Ithil.Management/
         ├── IAuditSink.cs
         │   └── WriteAsync(AuditRecord record) → Task
         │
-        ├── StdoutAuditSink.cs     → Writes JSON line to stdout (registered by default)
-        ├── FileAuditSink.cs       → Appends JSON line to a rolling file
-        └── ApplicationInsightsSink.cs → Writes as custom event to AppInsights
+        └── StdoutAuditSink.cs     → Writes JSON line to stdout (registered by default)
+            Additional sinks (file, AppInsights, etc.) are out of scope for v1.
+            Operators add custom sinks by registering IAuditSink implementations via DI.
 
 Ithil.Core/
 └── Interfaces/
@@ -151,10 +154,6 @@ Tests live in `Ithil.Management.Tests/Audit/`.
 ### Test: StdoutAuditSink_WritesValidJsonLine
 - Write one `AuditRecord`
 - Assert output is a single line of valid JSON (parseable)
-
-### Test: FileAuditSink_AppendsToFile_NotOverwrites
-- Write two records
-- Assert both records appear in the output file, each on its own line
 
 ### Test: StdoutAuditSink_IsRegisteredByDefault
 - Build a minimal `IServiceCollection` using `UseIthilGateway()` with no audit options set

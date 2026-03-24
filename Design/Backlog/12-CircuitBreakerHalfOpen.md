@@ -73,7 +73,7 @@ Ithil.Gateway/
       `CircuitState = "half-open"`
 - [ ] The half-open event includes `AgentId`, `ToolName`, and `Timestamp` consistent with
       the open and closed events
-- [ ] The dashboard design (`12-Dashboard.md`) already requires HalfOpen to be visually
+- [ ] The dashboard design (`19-Dashboard.md`) already requires HalfOpen to be visually
       distinct — this feature is the data layer that makes that possible
 
 ---

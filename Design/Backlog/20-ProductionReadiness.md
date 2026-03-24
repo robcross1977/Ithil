@@ -78,13 +78,23 @@ Ithil.Core/
 └── Interfaces/
     └── IEmbeddingService.cs
         Add: bool IsReady { get; }
+             Set to true by the concrete embedding service once the ONNX model has
+             loaded successfully. Set to false (and stays false) if loading throws.
+             The background startup task or constructor that loads the model is
+             responsible for setting this flag — the health check only reads it.
 
 Ithil.Gateway/
 └── Program.cs (or ServiceCollectionExtensions.cs)
     Register:
         builder.Services.AddHealthChecks()
-            .AddCheck<RedisHealthCheck>("redis", tags: ["ready"])
             .AddCheck<EmbeddingModelHealthCheck>("embedding-model", tags: ["ready"]);
+
+        // Only register Redis health check when not in in-memory mode.
+        // Dev setups with UseInMemory: true have no Redis running — always failing the
+        // readiness probe would make the check useless in production and broken in dev.
+        if (!options.AgentStore.UseInMemory)
+            builder.Services.AddHealthChecks()
+                .AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
 
     Map:
         app.MapHealthChecks("/health/live");
@@ -222,8 +232,7 @@ caching will be bypassed if Redis becomes unavailable. Set options.Redis.Failure
 = FailClosed to reject requests instead.
 ```
 
-This is the one case where a startup log is warranted — it is surfacing a security policy
-decision the operator may not have made consciously.
+This surfaces a security policy decision the operator may not have made consciously.
 
 ---
 
@@ -259,8 +268,12 @@ whether it is required or optional, and a one-line description of what it does.
 
 ```
 docs/
-└── CONFIGURATION.md     -- generated/maintained by hand; updated whenever a new
-                            IOptions<T> class is added to any project
+├── CONFIGURATION.md     -- every IOptions<T> class; updated whenever a new option is added
+└── DEPLOYMENT.md        -- Kubernetes deployment guide covering:
+                            - terminationGracePeriodSeconds vs .NET ShutdownTimeout relationship
+                            - Redis persistence requirement (RDB vs AOF) and managed service tiers
+                            - Liveness vs readiness probe configuration
+                            - Redis FailurePolicy decision and security implications
 ```
 
 A note in `CLAUDE.md` (or a developer README) must state: **any time a new configuration
@@ -273,7 +286,8 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
 ### Health Checks
 - [ ] `GET /health/live` returns 200 when the process is running, regardless of Redis state
 - [ ] `GET /health/ready` returns 200 only when Redis is reachable and the ONNX model is loaded
-- [ ] `GET /health/ready` returns 503 when Redis is unavailable
+- [ ] `GET /health/ready` returns 503 when Redis is unavailable (only when `UseInMemory` is false)
+- [ ] `GET /health/ready` does not include the Redis check when `UseInMemory` is true
 - [ ] `GET /health/ready` returns 503 when the embedding model failed to load
 - [ ] `IEmbeddingService` has an `IsReady` property
 - [ ] Kubernetes liveness probe can be pointed at `/health/live`
@@ -297,7 +311,8 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
 ### Configuration Reference
 - [ ] `docs/CONFIGURATION.md` exists and covers every option listed in the table above
 - [ ] Each entry has: config key, type, default, required/optional, description
-- [ ] A rule is added to `CLAUDE.md` requiring this file to be updated when new options are added
+- [ ] `docs/DEPLOYMENT.md` exists and covers: Kubernetes probe configuration, shutdown timing, Redis persistence tiers, and Redis failure policy
+- [ ] A rule is added to `CLAUDE.md` requiring both docs to be updated when new options or deployment concerns are added
 
 ---
 

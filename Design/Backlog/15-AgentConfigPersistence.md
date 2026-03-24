@@ -45,7 +45,7 @@ Three things:
 
 **1. `AgentConfig` model — add `ApiKeyHash`**
 
-The management API (feature 16) stores a SHA-256 hash of the agent's API key at creation
+The management API (feature 17) stores a SHA-256 hash of the agent's API key at creation
 time. This hash needs to live on the config record. It is nullable — the dev-seeded agent
 and any agent created before feature 16 ships will not have one.
 
@@ -79,6 +79,16 @@ This means:
 
 All operations are O(1) except listing (O(n) on number of agents, acceptable — agent
 counts are small). All operations are atomic at the Redis level.
+
+**`Seq<string>` serialization:** LanguageExt's `Seq<T>` does not serialize correctly with
+`System.Text.Json` by default. Before storing, map `AllowedTools` and `Scopes` to
+`string[]`. On read, map back to `Seq<string>`. Do not use a custom converter — the
+explicit mapping is more readable and avoids a runtime surprise if the converter is missing.
+
+**Known limitation — Redis key namespace:** All agents share the single key `ithil:agents`.
+If two Ithil gateway instances share one Redis instance, their agent configs will collide.
+v1 assumes one gateway per Redis. A configurable key prefix (`options.AgentStore.RedisKeyPrefix`)
+is explicitly out of scope for v1 and should be tracked as a follow-on item.
 
 ---
 
@@ -174,7 +184,7 @@ Ithil.Gateway/
 - [ ] `RedisAgentConfigRepository.GetAsync` returns `None` for an unknown agentId without throwing
 - [ ] `RedisAgentConfigRepository.DeleteAsync` returns `false` for an unknown agentId without throwing
 - [ ] `RedisAgentConfigRepository.UpsertAsync` round-trips `AgentConfig` correctly — all fields survive serialization
-- [ ] `AgentConfig.AllowedTools` and `AgentConfig.Scopes` (`Seq<string>`) serialize and deserialize correctly
+- [ ] `AgentConfig.AllowedTools` and `AgentConfig.Scopes` are mapped to `string[]` before serialization and back to `Seq<string>` after deserialization — no LanguageExt types appear in the JSON payload
 - [ ] Redis is the default; `appsettings.Development.json` sets `UseInMemory: true`
 - [ ] Dev agent seeded in `Program.cs` works with both implementations unchanged
 

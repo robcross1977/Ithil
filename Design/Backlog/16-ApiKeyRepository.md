@@ -42,7 +42,7 @@ Value: {agentId}
 
 Lookup is O(1): `HGET ithil:apikeys {hash}` returns the `agentId` directly.
 
-Deletion requires the hash. Since `AgentConfig.ApiKeyHash` (added in feature 17) holds
+Deletion requires the hash. Since `AgentConfig.ApiKeyHash` (added in feature 15) holds
 the hash, the delete flow for agent revocation is:
 
 1. `AgentManagementService` gets the agent's `ApiKeyHash` from `AgentConfig`
@@ -76,7 +76,7 @@ Task DeleteAsync(string hashedKey);
 **`NotImplementedStubs.cs`** — remove `NotImplementedApiKeyRepository` once the real
 implementations are registered. The stub file entry is deleted, not replaced.
 
-**Same `UseInMemory` flag as feature 17** — when in-memory mode is configured,
+**Same `UseInMemory` flag as feature 15** — when in-memory mode is configured,
 `InMemoryApiKeyRepository` is registered. When Redis mode is configured,
 `RedisApiKeyRepository` is registered. The flag controls both repositories together.
 
@@ -160,10 +160,10 @@ Ithil.Core/
 
 ## Redis Persistence Note
 
-The same persistence requirement from feature 17 applies here. `ithil:apikeys` must
+The same persistence requirement from feature 15 applies here. `ithil:apikeys` must
 survive process and Redis restarts. If API key hashes are lost, all agents using API
 key authentication are locked out until their keys are re-issued. Configure Redis with
-RDB or AOF persistence — see `17-AgentConfigPersistence.md` for details.
+RDB or AOF persistence — see `15-AgentConfigPersistence.md` for details.
 
 ---
 

@@ -66,7 +66,7 @@ flowchart TD
     B --> D[TraceRingBuffer.Add\nin-memory, last N events]
     A --> E[IAuditLogger.WriteAsync\nfire-and-forget to background channel]
     E --> F[StdoutAuditSink\nJSON line to stdout — default on]
-    E --> G[FileAuditSink / AppInsightsSink\noptional, configured by operator]
+    E --> G[Custom IAuditSink implementations\noptional, registered via DI]
     H[ILogger] --> I[Gateway internals only\nproblems and failures, nothing else]
 ```
 
@@ -112,6 +112,10 @@ global buffer client-side.
 **Default size: 500 events.**
 Large enough to give meaningful context on connect. Small enough to be irrelevant for
 memory. Configurable via `options.Trace.BufferSize`.
+
+This setting controls both the server-side ring buffer capacity and the maximum number
+of events the dashboard displays. There is no separate client-side cap — the dashboard
+simply shows whatever the buffer holds. One setting, one place to tune it.
 
 **Thread safety.**
 The buffer must be thread-safe. Multiple requests complete concurrently and write to the
@@ -165,9 +169,16 @@ Ithil.Gateway/
             └── int BufferSize   (default: 500)
 
 Ithil.Gateway/
+├── Tracing/
+│   └── TraceNotifier.cs                 -- EXISTING FILE: update NotifyAsync to call
+│                                           ITraceBuffer.Add(traceEvent) immediately
+│                                           after broadcasting via SignalR. Both writes
+│                                           happen in NotifyAsync — the ring buffer is
+│                                           not a separate code path.
+│
 └── Hubs/
-    └── TraceHub.cs                      -- existing; update OnConnectedAsync to send
-                                            ITraceBuffer.GetRecent() to the new client
+    └── TraceHub.cs                      -- EXISTING FILE: update OnConnectedAsync to
+                                            send ITraceBuffer.GetRecent() to the new client
 ```
 
 ---
@@ -217,9 +228,8 @@ builder.Services.AddIthilGateway(options =>
     options.Audit.DisableStdoutSink = true;
 });
 
-// To add additional sinks:
-builder.Services.AddSingleton<IAuditSink, FileAuditSink>();
-builder.Services.AddSingleton<IAuditSink, ApplicationInsightsSink>();
+// To add a custom sink:
+builder.Services.AddSingleton<IAuditSink, MyCustomAuditSink>();
 ```
 
 Explains: what the audit log is for, that stdout is on by default and why, what JSON

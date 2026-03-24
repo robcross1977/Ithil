@@ -180,10 +180,14 @@ foreach (var unit in aliveUnits)
 
 ### Logging Philosophy
 
-**CRITICAL**: Only log when something that SHOULD work is NOT working.
+**This rule is about code-level debug noise, not product-level operator output.**
 
-- ✅ **DO Log**: Problems, failures, missing data, configuration errors
-- ❌ **DON'T Log**: Normal operations, successful initialization, "this happened" info messages
+The goal is a console that is quiet enough to find real problems. Don't log every step of
+an algorithm or every normal code path — that creates a haystack that hides the needles.
+
+- ✅ **DO Log (code)**: Problems, failures, missing data, unexpected state
+- ❌ **DON'T Log (code)**: Internal steps, loop iterations, "entered this method" traces
+- ✅ **DO Log (product)**: Meaningful operator-facing status — active tier, policy decisions, startup gates
 - 💡 **Troubleshooting**: Add temporary debug logs when actively debugging specific issues, then remove them
 
 ```csharp
@@ -191,10 +195,10 @@ foreach (var unit in aliveUnits)
 if (card == null)
   UnityEngine.Debug.LogWarning("[CardRepository] Card slot is null at index {i}");
 
-if (duplicates.Any())
-  UnityEngine.Debug.LogWarning("[CardRepository] Duplicate cards found: {names}");
+// ✅ GOOD - Meaningful product-level status (operator needs to know this)
+logger.LogInformation("Ithil license validated. Tier: {Tier}", licenseInfo.Tier);
 
-// ❌ BAD - Logs normal operation (noise)
+// ❌ BAD - Internal code noise
 UnityEngine.Debug.Log("[CardRepository] Static constructor called");
 UnityEngine.Debug.Log("[CardRepository] Loading {count} cards...");
 UnityEngine.Debug.Log("[CardRepository] Card {i}: {cardName}");

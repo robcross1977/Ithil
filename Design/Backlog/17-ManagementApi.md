@@ -7,7 +7,7 @@ revoking agents, configuring budgets and tool allowlists, querying usage, and li
 available tools. Without this, the only way to manage the gateway is editing config
 files and restarting the process.
 
-The Blazor dashboard (feature 12) runs in the same process and calls the underlying
+The Blazor dashboard (feature 19) runs in the same process and calls the underlying
 service layer directly via DI — it does not go through these HTTP endpoints. The HTTP
 endpoints exist for:
 - CI/CD pipelines that create agents as part of a deploy
@@ -189,6 +189,8 @@ Ithil.Management/
             ├── GetStatusAsync(string agentId) → Either<ManagementError, BudgetStatusResponse>
             └── ResetAsync(string agentId) → Either<ManagementError, Unit>
                 Calls: IBudgetEngine.ResetUsageAsync(agentId)
+                       Note: if this method does not yet exist on IBudgetEngine,
+                       it must be added as part of this feature.
                 Calls: IAuditLogger.WriteAsync — outcome: "budget-reset", agentId recorded
 
 Ithil.Management/
@@ -198,7 +200,10 @@ Ithil.Management/
     ├── AgentResponse.cs            -- never includes apiKey
     ├── UpdateAgentRequest.cs       -- all fields optional
     ├── BudgetStatusResponse.cs
-    └── ManagementError.cs          -- discriminated union: NotFound | Conflict | Invalid
+    └── ManagementError.cs          -- discriminated union: NotFound | Invalid
+        Note: Conflict is intentionally absent. AgentIds are always system-generated
+        with random bytes — a collision is astronomically unlikely and not a real
+        error path worth handling.
 
 Ithil.Gateway/
 └── Management/
@@ -222,8 +227,9 @@ Ithil.Core/
 The existing `AuditRecord` model needs one new `Outcome` value: `"budget-reset"`. The
 record for a reset should carry:
 - `AgentId` of the agent whose budget was reset
-- `AgentId` of the admin who performed the reset (from the JWT `agent_id` claim of the
-  management token — for admin tokens this is the operator's identity)
+- `OperatorId` of the admin who performed the reset — read from the `sub` claim of the
+  admin JWT. Admin JWTs must carry a meaningful `sub` value (e.g. the operator's email
+  or a fixed operator identifier). If `sub` is absent, log a warning and record `null`.
 - `Outcome = "budget-reset"`
 - `Timestamp`
 
@@ -242,7 +248,7 @@ record for a reset should carry:
 - [ ] `GET /management/agents/{id}/budget` returns correct `percentageUsed` and `resetsAt`
 - [ ] `GET /management/tools` returns all tools from the schema registry
 - [ ] `ManagementError.NotFound` produces a 404 response
-- [ ] `ManagementError.Conflict` produces a 409 response (duplicate agentId)
+- [ ] `ManagementError.Invalid` produces a 400 response
 - [ ] Blazor dashboard services inject `IAgentManagementService` and `IBudgetQueryService` directly — no HTTP calls to these endpoints from within the process
 - [ ] Admin tokens are rejected on the agent request path (`/mcp` and YARP routes)
 
@@ -255,7 +261,6 @@ Tests live in `Ithil.Management.Tests/Services/` and `Ithil.Gateway.Tests/Manage
 ### AgentManagementService
 - `AgentManagementService_Create_ReturnsApiKey_OnSuccess` — create agent; assert response contains `apiKey`
 - `AgentManagementService_Create_StoresHash_NotPlaintext` — after create, assert stored value differs from the returned key
-- `AgentManagementService_Create_ReturnsConflict_WhenAgentIdExists` — create same agentId twice; assert `Left(Conflict)`
 - `AgentManagementService_Get_ReturnsRight_ForKnownAgent`
 - `AgentManagementService_Get_ReturnsNotFound_ForUnknownAgent`
 - `AgentManagementService_Update_AppliesOnlySuppliedFields` — update budget only; assert label unchanged
