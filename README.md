@@ -7,13 +7,13 @@
 
 Ithil is a gateway that sits in front of your existing C# APIs and makes them safe for AI agents to call. It handles identity, budgets, privacy, caching, and observability — so your team doesn't have to build any of that.
 
-| Problem | Ithil Solution |
-|---|---|
-| Agents hallucinate with messy REST APIs | Compile-time MCP schema generation from `[AgentTool]`-decorated C# controllers |
-| No visibility into what agents are doing | SignalR real-time trace feed — every tool call, latency, outcome |
-| Agents loop and call destructive endpoints | Circuit breaker + per-agent daily token budgets with hard 429 enforcement |
-| Redundant LLM calls cost thousands per month | Semantic cache in Redis — keyed on intent, not raw request parameters |
-| PII leaking to LLMs | Privacy filter scrubs every response before it leaves the gateway |
+| Problem                                      | Ithil Solution                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| Agents hallucinate with messy REST APIs      | Compile-time MCP schema generation from `[AgentTool]`-decorated C# controllers |
+| No visibility into what agents are doing     | SignalR real-time trace feed — every tool call, latency, outcome               |
+| Agents loop and call destructive endpoints   | Circuit breaker + per-agent daily token budgets with hard 429 enforcement      |
+| Redundant LLM calls cost thousands per month | Semantic cache in Redis — keyed on intent, not raw request parameters          |
+| PII leaking to LLMs                          | Privacy filter scrubs every response before it leaves the gateway              |
 
 ---
 
@@ -183,18 +183,23 @@ public async Task<IActionResult> CreateOrder(string sku, int quantity, string bu
 Every request must carry a verifiable agent identity. Two mechanisms are supported:
 
 **JWT (enterprise / OIDC-backed):**
+
 ```
 Authorization: Bearer eyJhbGci...
 ```
+
 The JWT must contain an `agent_id` claim. Signature, expiry, issuer, and audience are all validated.
 
 **API Key (self-serve):**
+
 ```
 X-Api-Key: ithil_live_a3f9...
 ```
+
 Keys are stored hashed (SHA-256) — the plaintext is shown once at creation and never stored.
 
 Configure JWT validation in `appsettings.json`:
+
 ```json
 "Ithil": {
   "Jwt": {
@@ -237,11 +242,11 @@ Allowlists are managed via the agent config record. An empty allowlist means the
 
 Every response body passes through the privacy filter before it reaches the agent. Built-in patterns cover the most common PII types:
 
-| Pattern | Replacement |
-|---|---|
-| Email addresses | `[EMAIL REDACTED]` |
-| Social Security Numbers (`NNN-NN-NNNN`) | `[SSN REDACTED]` |
-| Credit card numbers (13–16 digits) | `[CARD REDACTED]` |
+| Pattern                                 | Replacement        |
+| --------------------------------------- | ------------------ |
+| Email addresses                         | `[EMAIL REDACTED]` |
+| Social Security Numbers (`NNN-NN-NNNN`) | `[SSN REDACTED]`   |
+| Credit card numbers (13–16 digits)      | `[CARD REDACTED]`  |
 
 Custom rules are added via config — no code changes required:
 
@@ -332,10 +337,10 @@ Every tool call emits an event to a SignalR hub at `/hubs/trace`. Connect any Si
 
 ```javascript
 const connection = new HubConnectionBuilder()
-    .withUrl("https://your-gateway/hubs/trace")
-    .build();
+  .withUrl("https://your-gateway/hubs/trace")
+  .build();
 
-connection.on("TraceEvent", event => console.log(event));
+connection.on("TraceEvent", (event) => console.log(event));
 await connection.start();
 ```
 
@@ -403,11 +408,11 @@ Complete `appsettings.json` with all available options:
 
 ## Requirements
 
-| Requirement | Notes |
-|---|---|
-| .NET 10+ | Gateway and downstream services |
-| Redis Stack | Required for semantic cache (vector search) and budget engine. Plain Redis is **not** sufficient for the cache — use `redis/redis-stack` |
-| ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — place in `models/` relative to the gateway. No internet access required at runtime |
+| Requirement      | Notes                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| .NET 10+         | Gateway and downstream services                                                                                                          |
+| Redis Stack      | Required for semantic cache (vector search) and budget engine. Plain Redis is **not** sufficient for the cache — use `redis/redis-stack` |
+| ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — place in `models/` relative to the gateway. No internet access required at runtime               |
 
 **Without Redis:** Set `UseInMemory: true` in dev environments. Budget and cache use in-memory fallbacks. Not suitable for production or multi-instance deployments.
 
@@ -460,11 +465,10 @@ Ithil is licensed under the [Business Source License 1.1](./LICENSE) (BUSL-1.1).
 - **Commercial production use** — requires a commercial license from Crossland Creative LLC.
 - **2033-04-17** — license converts to Apache 2.0, permanently and irrevocably.
 
-| Tier | Price | What You Get |
-|---|---|---|
-| Non-Commercial | Free | Full source under BUSL. Self-host. No commercial use. |
+| Tier             | Price                | What You Get                                             |
+| ---------------- | -------------------- | -------------------------------------------------------- |
+| Non-Commercial   | Free                 | Full source under BUSL. Self-host. No commercial use.    |
 | Commercial Small | $149/mo or $1,490/yr | Commercial license, self-host, best-effort email support |
-| Commercial Business | $499/mo or $4,990/yr | Commercial license, self-host, 48h SLA email support |
-| Enterprise | Contact us | Custom contract and SLA |
+| Enterprise       | Contact us           | Custom contract and SLA                                  |
 
 Commercial licensing: contact Crossland Creative LLC.
