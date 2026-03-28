@@ -112,6 +112,43 @@ public class CircuitBreakerPolicyFactoryTests
     }
 
     [Fact]
+    public async Task CircuitBreaker_FiresHalfOpenEvent_WhenCircuitEntersHalfOpen()
+    {
+        var pipeline = BuildPipeline();
+        await TriggerFailures(pipeline, 5);
+
+        await Task.Delay(500);
+
+        // Trigger the probe (half-open → one request allowed through)
+        var act = async () => await pipeline.ExecuteAsync(_ => Failure());
+        await act.Should().ThrowAsync<HttpRequestException>();
+
+        await _notifier
+            .Received(1)
+            .NotifyAsync(Arg.Is<AgentTraceEvent>(e =>
+                e.CircuitState == "half-open" && e.Status == "circuit-half-open"));
+    }
+
+    [Fact]
+    public async Task CircuitBreaker_HalfOpenEvent_IncludesAgentIdAndToolName()
+    {
+        var pipeline = BuildPipeline();
+        await TriggerFailures(pipeline, 5);
+
+        await Task.Delay(500);
+
+        var act = async () => await pipeline.ExecuteAsync(_ => Failure());
+        await act.Should().ThrowAsync<HttpRequestException>();
+
+        await _notifier
+            .Received(1)
+            .NotifyAsync(Arg.Is<AgentTraceEvent>(e =>
+                e.CircuitState == "half-open" &&
+                e.AgentId == "agent-1" &&
+                e.ToolName == "GetStock"));
+    }
+
+    [Fact]
     public void CircuitBrerakerOpotins_DefaultValues()
     {
         CircuitBreakerOptions defaults = new();

@@ -46,8 +46,9 @@ public record AgentTraceEvent
     public int? TokensUsed { get; init ; }
 
     /// <summary>
-    /// Circuit breaker state change, if this event was triggered by a circuit transititon.
-    /// "open" when the circuit just opened; "closed" when it just closed. Null otherwise.
+    /// Circuit breaker state change, if this event was triggered by a circuit transition.
+    /// "open" when the circuit just opened; "half-open" when a probe request is being attempted;
+    /// "closed" when it just closed. Null otherwise.
     /// </summary>
     public string? CircuitState { get; init; }
 }

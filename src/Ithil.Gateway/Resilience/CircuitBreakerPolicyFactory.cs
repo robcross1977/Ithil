@@ -80,5 +80,22 @@ internal static class CircuitBreakerPolicyFactory
 
                 return ValueTask.CompletedTask;
             },
+
+            OnHalfOpened = _ =>
+            {
+                notifier.NotifyAsync(
+                    new AgentTraceEvent
+                    {
+                        TraceId = Guid.NewGuid().ToString("N"),
+                        AgentId = agentId,
+                        ToolName = toolName,
+                        Status = "circuit-half-open",
+                        CircuitState = "half-open",
+                        Timestamp = DateTime.UtcNow.ToString("O"),
+                    }
+                );
+
+                return ValueTask.CompletedTask;
+             },
         };
 }
