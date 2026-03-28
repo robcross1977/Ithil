@@ -12,7 +12,8 @@ public class ResponseTransformPipeline(
     IPrivacyFilter privacyFilter,
     IBudgetEngine budgetEngine,
     ITraceNotifier traceNotifier,
-    IAuditLogger auditLogger
+    IAuditLogger auditLogger,
+    ITokenCounter tokenCounter
 )
 {
     /// <summary>
@@ -70,7 +71,7 @@ public class ResponseTransformPipeline(
     )
     {
         var scrubbedBody = await privacyFilter.ScrubAsync(body);
-        var tokensUsed = scrubbedBody.Split(' ').Length;
+        var tokensUsed = tokenCounter.CountTokens(scrubbedBody);
 
         await budgetEngine.RecordUsageAsync(agentId, tokensUsed);
 

@@ -13,6 +13,7 @@ using Ithil.Management.Audit.Sinks;
 using Ithil.Management.Repositories;
 using Ithil.Privacy;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.ML.Tokenizers;
 using Polly;
 using StackExchange.Redis;
 
@@ -47,7 +48,7 @@ public static class ServiceCollectionExtensions
                     ?? throw new InvalidOperationException("ConnectionStrings:Redis is required")
             )
         );
-        services.AddScoped(sp => sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
+        services.AddScoped(sp => sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());     
         services.AddSingleton(
             new BudgetEngineOptions
             {
@@ -57,6 +58,16 @@ public static class ServiceCollectionExtensions
                 ),
             }
         );
+        services.AddSingleton<ITokenCounter>(_ =>
+        {
+            using var http = new HttpClient();
+            using var vocabStream = http.GetStreamAsync(
+                "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+            ).GetAwaiter().GetResult();
+            var tokenizer = TiktokenTokenizer.CreateForModelAsync("gpt-4", vocabStream)
+                .GetAwaiter().GetResult();
+            return new Tokenization.TiktokenTokenCounter(tokenizer);
+        });
         services.AddScoped<IBudgetEngine, BudgetEngine>();
 
         services.AddSingleton(
