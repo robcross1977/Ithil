@@ -11,7 +11,8 @@ namespace Ithil.Gateway.Transforms;
 public class ResponseTransformPipeline(
     IPrivacyFilter privacyFilter,
     IBudgetEngine budgetEngine,
-    ITraceNotifier traceNotifier
+    ITraceNotifier traceNotifier,
+    IAuditLogger auditLogger
 )
 {
     /// <summary>
@@ -34,6 +35,7 @@ public class ResponseTransformPipeline(
         await result.Match(
             Succ: _ => Task.CompletedTask,
             Fail: async _ =>
+            {
                 await traceNotifier.NotifyAsync(
                     new AgentTraceEvent
                     {
@@ -45,7 +47,17 @@ public class ResponseTransformPipeline(
                         Timestamp = DateTime.UtcNow.ToString("O"),
                         LatencyMs = latencyMs,
                     }
-                )
+                );
+                await auditLogger.WriteAsync(new AuditRecord
+                {
+                    Timestamp = DateTime.UtcNow.ToString("O"),
+                    TraceId = traceId,
+                    AgentId = agentId,
+                    ToolName = toolName,
+                    Outcome = "error",
+                    LatencyMs = (int?)latencyMs,
+                });
+            }
         );
     }
 
@@ -74,6 +86,18 @@ public class ResponseTransformPipeline(
                 LatencyMs = latencyMs,
             }
         );
+
+        await auditLogger.WriteAsync(new AuditRecord
+        {
+            Timestamp = DateTime.UtcNow.ToString("O"),
+            TraceId = traceId,
+            AgentId = agentId,
+            ToolName = toolName,
+            Outcome = "success",
+            TokensUsed = tokensUsed,
+            LatencyMs = (int?)latencyMs,
+            PiiScrubbed = true,
+        });
 
         return unit;
     }

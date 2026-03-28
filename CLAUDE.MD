@@ -320,4 +320,9 @@ When designing we have some folders to use.
 
 **Remember**: These are guidelines, not strict rules. Use judgment when they conflict. Clarity and maintainability are the ultimate goals.
 
-lease note: I want you to assist me in writing code, not write it for me. Give me the code to write and guide me and answer questions. I need to know what is in the code. 
+**Hand-editing policy**: I want to type the source code myself — show me what to write, guide me, and explain it so I build familiarity with what's in the codebase. However, I do NOT need to hand-edit the following — Claude should write these directly:
+- Project files (`.csproj`, `.slnx`, `.props`, `.targets`)
+- Test files (show me and get approval first, then write them)
+- Config/infrastructure files (`appsettings.json`, `Dockerfile`, CI yaml, etc.)
+
+Source code (`.cs` files that are not tests) is what I want to write myself. 

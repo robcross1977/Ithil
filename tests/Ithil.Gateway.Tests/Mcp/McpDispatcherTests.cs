@@ -16,7 +16,9 @@ public class McpDispatcherTests
         Substitute.For<IHttpClientFactory>(),
         new ToolRegistryOptions(),
         Substitute.For<ISemanticCache>(),
-        Substitute.For<ITraceNotifier>()
+        Substitute.For<ITraceNotifier>(),
+        Substitute.For<IAuditLogger>(),
+        Substitute.For<IPrivacyFilter>()
     );
 
     // JsonElement has no public constructor — parse from a JSON string to get a typed value.

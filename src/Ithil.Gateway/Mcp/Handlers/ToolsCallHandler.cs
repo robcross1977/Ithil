@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
@@ -19,7 +20,9 @@ public static class ToolsCallHandler
         IHttpClientFactory httpClientFactory,
         ToolRegistryOptions options,
         ISemanticCache semanticCache,
-        ITraceNotifier traceNotifier
+        ITraceNotifier traceNotifier,
+        IAuditLogger auditLogger,
+        IPrivacyFilter privacyFilter
     )
     {
         if (!request.Params.HasValue)
@@ -56,6 +59,16 @@ public static class ToolsCallHandler
                 }
             );
 
+            await auditLogger.WriteAsync(new AuditRecord
+            {
+                Timestamp = DateTime.UtcNow.ToString("O"),
+                TraceId = string.Empty,
+                AgentId = string.Empty,
+                ToolName = toolName,
+                Outcome = "cache-hit",
+                CacheHit = true,
+            });
+
             return new JsonRpcResponse
             {
                 Id = request.Id,
@@ -69,6 +82,22 @@ public static class ToolsCallHandler
         var client = httpClientFactory.CreateClient("downstream");
         var response = await client.SendAsync(httpRequest);
         var content = await response.Content.ReadAsStringAsync();
+
+        var rawArgs = arguments.ValueKind != JsonValueKind.Undefined ? arguments.ToString() : "{}";
+        var scrubbedArgs = await privacyFilter.ScrubAsync(
+            new MemoryStream(Encoding.UTF8.GetBytes(rawArgs))
+        );
+
+        await auditLogger.WriteAsync(new AuditRecord
+        {
+            Timestamp = DateTime.UtcNow.ToString("O"),
+            TraceId = string.Empty,
+            AgentId = string.Empty,
+            ToolName = toolName,
+            Outcome = "success",
+            Parameters = scrubbedArgs,
+            PiiScrubbed = true,
+        });
 
         return new JsonRpcResponse
         {

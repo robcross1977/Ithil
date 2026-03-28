@@ -10,9 +10,10 @@ public class ResponseTransformPipelineTests
     private readonly IPrivacyFilter _privacyFilter = Substitute.For<IPrivacyFilter>();
     private readonly IBudgetEngine _budgetEngine = Substitute.For<IBudgetEngine>();
     private readonly ITraceNotifier _traceNotifier = Substitute.For<ITraceNotifier>();
+    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
 
     private ResponseTransformPipeline CreatePipeline() =>
-        new(_privacyFilter, _budgetEngine, _traceNotifier);
+        new(_privacyFilter, _budgetEngine, _traceNotifier, _auditLogger);
 
     [Fact]
     public async Task CallsScrubber_OnResponseBody()

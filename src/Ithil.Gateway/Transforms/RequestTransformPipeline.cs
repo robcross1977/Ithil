@@ -14,7 +14,8 @@ public class RequestTransformPipeline(
     IBudgetEngine budgetEngine,
     IToolAllowlistService allowlistService,
     ITraceIdFactory traceIdFactory,
-    ITraceNotifier traceNotifier
+    ITraceNotifier traceNotifier,
+    IAuditLogger auditLogger
 )
 {
     /// <summary>
@@ -62,6 +63,15 @@ public class RequestTransformPipeline(
                     Timestamp = DateTime.UtcNow.ToString("O"),
                 }
             );
+            await auditLogger.WriteAsync(new AuditRecord
+            {
+                Timestamp = DateTime.UtcNow.ToString("O"),
+                TraceId = string.Empty,
+                AgentId = string.Empty,
+                ToolName = context.Request.Path.Value ?? string.Empty,
+                Outcome = "blocked",
+                ErrorMessage = "identity resolution failed",
+            });
             return unit;
         }
 
@@ -81,6 +91,15 @@ public class RequestTransformPipeline(
                     Timestamp = DateTime.UtcNow.ToString("O"),
                 }
             );
+            await auditLogger.WriteAsync(new AuditRecord
+            {
+                Timestamp = DateTime.UtcNow.ToString("O"),
+                TraceId = string.Empty,
+                AgentId = agentId,
+                ToolName = context.Request.Path.Value ?? string.Empty,
+                Outcome = "blocked",
+                ErrorMessage = "budget exceeded",
+            });
             return unit;
         }
 
@@ -100,6 +119,15 @@ public class RequestTransformPipeline(
                     Timestamp = DateTime.UtcNow.ToString("O"),
                 }
             );
+            await auditLogger.WriteAsync(new AuditRecord
+            {
+                Timestamp = DateTime.UtcNow.ToString("O"),
+                TraceId = string.Empty,
+                AgentId = agentId,
+                ToolName = toolName,
+                Outcome = "blocked",
+                ErrorMessage = "tool not allowed",
+            });
             return unit;
         }
 

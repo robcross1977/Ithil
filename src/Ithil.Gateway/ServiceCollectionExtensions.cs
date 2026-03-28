@@ -1,11 +1,15 @@
 using System.Text;
+using System.Threading.Channels;
 using Ithil.Budget;
 using Ithil.Cache;
 using Ithil.Core.Interfaces;
+using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Identity;
 using Ithil.Gateway.Stubs;
 using Ithil.Gateway.Transforms;
+using Ithil.Management.Audit;
+using Ithil.Management.Audit.Sinks;
 using Ithil.Management.Repositories;
 using Ithil.Privacy;
 using Microsoft.IdentityModel.Tokens;
@@ -43,13 +47,11 @@ public static class ServiceCollectionExtensions
                     ?? throw new InvalidOperationException("ConnectionStrings:Redis is required")
             )
         );
-        services.AddScoped<IDatabase>(sp =>
-            sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase()
-        );
+        services.AddScoped(sp => sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
         services.AddSingleton(
             new BudgetEngineOptions
             {
-                DefaultDailyTokenLimit = configuration.GetValue<int>(
+                DefaultDailyTokenLimit = configuration.GetValue(
                     "Ithil:Budget:DefaultDailyTokenLimit",
                     100_000
                 ),
@@ -103,6 +105,30 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITraceNotifier, TraceNotifier>();
         services.AddSingleton<PrivacyFilterOptions>();
         services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
+
+        services.AddIthilAudit(configuration);
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers audit logging services. StdoutAuditSink is on by default;
+    /// set Ithil:Audit:DisableStdoutSink = true to opt out.
+    /// </summary>
+    public static IServiceCollection AddIthilAudit(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var auditOptions = new AuditOptions();
+        configuration.GetSection("Ithil:Audit").Bind(auditOptions);
+        services.AddSingleton(auditOptions);
+
+        services.AddSingleton(Channel.CreateUnbounded<AuditRecord>());
+        services.AddSingleton<IAuditLogger, AuditLogger>();
+        services.AddHostedService<AuditBackgroundWorker>();
+
+        if (!auditOptions.DisableStdoutSink)
+            services.AddSingleton<IAuditSink, StdoutAuditSink>();
 
         return services;
     }

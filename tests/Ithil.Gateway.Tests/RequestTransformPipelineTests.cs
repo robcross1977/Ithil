@@ -17,9 +17,10 @@ public class RequestTransformPipelineTests
         Substitute.For<IToolAllowlistService>();
     private readonly ITraceIdFactory _traceIdFactory = Substitute.For<ITraceIdFactory>();
     private readonly ITraceNotifier _traceNotifier = Substitute.For<ITraceNotifier>();
+    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
 
     private RequestTransformPipeline CreatePipeline() =>
-        new(_identityService, _budgetEngine, _allowListService, _traceIdFactory, _traceNotifier);
+        new(_identityService, _budgetEngine, _allowListService, _traceIdFactory, _traceNotifier, _auditLogger);
 
     [Fact]
     public async Task ReturnsUnauthorized_WhenAgentNotResolved()
