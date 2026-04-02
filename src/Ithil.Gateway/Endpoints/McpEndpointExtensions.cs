@@ -5,6 +5,7 @@ namespace Ithil.Gateway.Endpoints;
 
 /// <summary>
 /// Registers all MCP protocol endpoints on the application router.
+/// </summary>
 public static class McpEndpointExtensions
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -25,7 +26,7 @@ public static class McpEndpointExtensions
 
         _ = app.MapPost("/mcp", static async context =>
         {
-            var request = await JsonSerializer.DeserializeAsync<Ithil.Core.Models.JsonRpcRequest>(
+            var request = await JsonSerializer.DeserializeAsync<Core.Models.JsonRpcRequest>(
                 context.Request.Body,
                 JsonOptions);
 

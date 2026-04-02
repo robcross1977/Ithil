@@ -113,7 +113,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IToolAllowlistService, ToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
         services.AddSignalR();
-        services.AddScoped<ITraceNotifier, TraceNotifier>();
+        services.AddSingleton<ITraceNotifier, TraceNotifier>();
         services.AddSingleton<PrivacyFilterOptions>();
         services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
 

@@ -41,6 +41,9 @@ yarn-error.log*
 # Docker
 docker/data/
 
+# ML model files (downloaded at setup, too large for git)
+src/Ithil.Gateway/models/
+
 # Misc editor artifacts
 nvim
 *.swp
