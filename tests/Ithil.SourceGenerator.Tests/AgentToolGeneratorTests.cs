@@ -314,6 +314,8 @@ public class AgentToolGeneratorTests
         var (_, _, source) = RunGenerator(code);
 
         source.Should().Contain("api/inventory/stock/{sku}");
+        source.Should().Contain("HttpMethod = \"GET\"");
+        source.Should().Contain("{ \"sku\", \"route\" }");
     }
 
     [Fact]
