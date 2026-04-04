@@ -1,4 +1,5 @@
 using Ithil.Core.Interfaces;
+using LanguageExt;
 
 namespace Ithil.Gateway.Identity;
 
@@ -18,5 +19,22 @@ internal class ToolAllowlistService(IAgentConfigRepository agentConfigRepository
         return config.Match(
             Some: c => c.AllowedTools.IsEmpty || c.AllowedTools.Contains(toolName),
             None: () => false);
+    }
+
+    /// <summary>
+    /// Returns the agent's tool allowlist.
+    /// Returns None if the agent has no restrictions (all tools permitted).
+    /// Returns Some with names if the agent is restricted to a specific set.
+    /// Returns Some with an empty set if the agent is unknown (all tools denied).
+    /// </summary>
+    public async Task<Option<Seq<string>>> TryGetToolAllowlistAsync(string agentId)
+    {
+        var config = await agentConfigRepository.GetAsync(agentId);
+
+        return config.Match(
+            Some: c => c.AllowedTools.IsEmpty
+                ? Option<Seq<string>>.None
+                : Option<Seq<string>>.Some(c.AllowedTools),
+            None: () => Option<Seq<string>>.Some(Seq<string>.Empty));
     }
 }

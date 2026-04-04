@@ -2,7 +2,6 @@ using System.Text;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway;
-using Ithil.Gateway.Endpoints;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Mcp;
 using Ithil.Gateway.Transforms;
@@ -13,8 +12,6 @@ using Yarp.ReverseProxy.Transforms;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddIthilServices(builder.Configuration);
-builder.Services.AddScoped<McpDispatcher>();
-builder.Services.AddScoped<SseEmitter>();
 builder
     .Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
@@ -53,6 +50,9 @@ builder
         });
     });
 builder.Services.AddHealthChecks();
+builder.Services.AddMcpServer()
+    .WithHttpTransport(options =>
+        options.ConfigureSessionOptions = McpSessionConfiguration.ConfigureSessionAsync);
 
 var app = builder.Build();
 app.MapHub<TraceHub>("/hubs/trace");
@@ -94,9 +94,13 @@ if (app.Environment.IsDevelopment())
     );
 }
 
-app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapHealthChecks("/health");
-app.MapMcpEndpoints();
+app.MapMcp("/mcp").RequireAuthorization();
+
+app.UseHttpsRedirection();
 app.MapReverseProxy();
 
 app.Run();

@@ -151,15 +151,23 @@ flowchart TD
 
 ## Source Generator Change
 
-`Ithil.SourceGenerator` currently emits a JSON manifest. After migration it emits
-`[McpServerTool]`-decorated proxy classes instead. The `[AgentTool]` attribute on
-downstream controller actions is the input; the generated proxy class is the output.
+`Ithil.SourceGenerator` **retains the `SchemaRegistry.g.cs` approach** — no change to the emitted output. The proxy class approach (`[McpServerToolType]` generated classes) was abandoned because it requires the MCP server and the `[AgentTool]` methods to be in the same compiled assembly. Ithil is a gateway: it never references downstream assemblies at compile time.
+
+The flow is:
+- Downstream app: `[AgentTool]` method → source generator → `SchemaRegistry.g.cs` (in downstream assembly)
+- Downstream app: `MapIthilSchema()` exposes `GET /ithil/schema` from `SchemaRegistry.Tools`
+- Gateway: `IToolRegistry.GetToolsAsync()` fetches and caches the schema at runtime
+- Gateway: Creates `McpServerTool` instances dynamically from `ToolRegistryEntry` using `McpServerTool.Create(AIFunction)`
+- SDK handles all protocol work from there
 
 ```mermaid
 flowchart LR
     A["[AgentTool] on downstream controller"] --> B[Roslyn Source Generator]
-    B --> C["[McpServerTool] proxy class\nRegistered via AddTool<T>()"]
-    C --> D[SDK discovers and exposes as MCP tool]
+    B --> C["SchemaRegistry.g.cs (in downstream dll)"]
+    C --> D["GET /ithil/schema\nvia MapIthilSchema()"]
+    D --> E["IToolRegistry.GetToolsAsync()\n(gateway, runtime)"]
+    E --> F["McpServerTool.Create(AIFunction)\nper ToolRegistryEntry"]
+    F --> G[SDK exposes as MCP tool]
 ```
 
 ---
@@ -209,6 +217,25 @@ Ithil.SourceGenerator/
 ```
 
 ### Deleted (see table above)
+
+---
+
+## Open Questions / Blockers
+
+### SDK API — Per-Session Tool Filtering (BLOCKED)
+The `McpSessionConfiguration` tests (`Session_FiltersTools_ByAgentAllowlist`, `Session_RejectsCall_ForDisallowedTool`) are **on hold** until the exact SDK API for per-session filtering is confirmed. The type `McpServerSessionOptions` and the `ConfigureSessionOptions` callback signature vary across preview versions of `ModelContextProtocol.AspNetCore`. Do not write `McpSessionConfiguration.cs` or its tests until the installed package version's API is verified (e.g. by browsing its source or IntelliSense).
+
+### Auth Gap — `/mcp` Requires `.RequireAuthorization()`
+The current `MapMcpEndpoints()` call has no `.RequireAuthorization()`. The `McpPost_Returns401_WithNoToken` test cannot pass until JWT auth middleware is configured and `app.MapMcp()` (or its route group) has `.RequireAuthorization()` applied. This must be done as part of the `Program.cs` migration step.
+
+### ~~IToolAllowlistService — Missing Enumeration Method~~ ✅ DONE
+
+`TryGetToolAllowlistAsync(string agentId)` added to `IToolAllowlistService` and implemented in `ToolAllowlistService`.
+
+### Generated Proxy Parameters — Typed Later
+The `McpToolProxies.g.cs` emitter currently generates all `ExecuteAsync` parameters as `string`. This is intentional for the initial working shape. The SDK reflects on the method signature, so type fidelity matters for correct schema generation.
+
+**TODO:** After the basic proxy pipeline is working end-to-end, revisit `GenerateMcpProxyClasses` in `AgentToolGenerator.cs` to emit the correct C# type for each parameter using `TypeMapper.ToJsonType` (already exists) mapped back to C# primitives (e.g. `integer` → `int`, `boolean` → `bool`, etc.).
 
 ---
 

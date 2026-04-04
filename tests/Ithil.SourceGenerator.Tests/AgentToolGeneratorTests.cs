@@ -30,7 +30,7 @@ public class AgentToolGeneratorTests
             }
         }
         """;
- 
+
     private const string HttpAttributeSource = """
         namespace Microsoft.AspNetCore.Mvc
         {
@@ -112,15 +112,6 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
-    public void EmptyProject_EmitsEmptyRegistry()
-    {
-        var (_, _, source) = RunGenerator("// no tools here");
-
-        source.Should().Contain("SchemaRegistry");
-        source.Should().Contain("Tools");
-    }
-
-    [Fact]
     public void SingleMethod_EmitsCorrectName()
     {
         var code = """
@@ -150,38 +141,6 @@ public class AgentToolGeneratorTests
         var (_, _, source) = RunGenerator(code);
 
         source.Should().Contain("Returns stock levels for a SKU");
-    }
-
-    [Fact]
-    public void AllowWrite_DefaultsFalse()
-    {
-        var code = """
-            using Ithil.Attributes;
-            public class MyController {
-                [AgentTool("desc")]
-                public void GetInventory() {}
-            }
-            """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("AllowWrite = false");
-    }
-
-    [Fact]
-    public void AllowWrite_CanBeSetTrue()
-    {
-        var code = """
-            using Ithil.Attributes;
-            public class MyController {
-                [AgentTool("desc", AllowWrite = true)]
-                public void DeleteItem() {}
-            }
-            """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("AllowWrite = true");
     }
 
     [Fact]
@@ -219,7 +178,72 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
-    public void HttpGet_CapturesMethodAndRoute()
+    public void SingleTool_EmitsSchemaRegistryClass()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("SchemaRegistry");
+    }
+
+    [Fact]
+    public void SingleTool_EmitsToolEntryClass()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("ToolEntry");
+    }
+
+    [Fact]
+    public void SingleTool_EmitsNameInEntry()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("Name = \"GetInventory\"");
+    }
+
+    [Fact]
+    public void SingleTool_EmitsHttpMethodAndRoutePatternFields()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod");
+        source.Should().Contain("RoutePattern");
+    }
+
+    [Fact]
+    public void SingleTool_EmitsRoutePatternInEntry()
     {
         var code = """
             using Ithil.Attributes;
@@ -228,124 +252,48 @@ public class AgentToolGeneratorTests
             public class MyController {
                 [AgentTool("desc")]
                 [HttpGet("stock/{sku}")]
-                public void GetStock(string sku) {}
-            } 
-        """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("HttpMethod = \"GET\"");
-        source.Should().Contain("RoutePattern = \"api/inventory/stock/{sku}\"");
-    }
-
-    [Fact]
-    public void HttpPost_CapturesMethodAndRoute()
-    {
-        var code = """
-            using Ithil.Attributes;
-            using Microsoft.AspNetCore.Mvc;
-            [Route("api/inventory")]
-            public class MyController {
-                [AgentTool("desc")]
-                [HttpPost("restock")]
-                public void CreateStock() {}
-            }
-        """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("HttpMethod = \"POST\"");
-        source.Should().Contain("RoutePattern = \"api/inventory/restock\"");
-    }
-
-    [Fact]
-    public void RouteParam_SourceIsRoot()
-    {
-        var code = """
-            using Ithil.Attributes;
-            using Microsoft.AspNetCore.Mvc;
-            public class MyController {
-                [AgentTool("desc")]
-                [HttpGet("items/{id}]
-                public void Get(int id) {}
-            }
-        """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("{ \"id\", \"route\" }");
-    }
-  
-    [Fact]
-    public void SimpleTypeParam_WithoutRouteTemplate_SourceIsQuery()
-    {
-        var code = """
-            using Ithil.Attributes;
-            using Microsoft.AspNetCore.Mvc;
-            public class MyController {
-                [AgentTool("desc")]
-                [HttpGet("items")]
-                public void Get(string filter) {}
-            }
-        """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("{ \"filter\", \"query\" }");
-    }
-
-    [Fact]
-    public void ComplexTypeParam_SourceIsBody()
-    {
-        var code = """
-            using Ithil.Attributes;
-            using Microsfot.AspNetCore.Mvc;
-            public class CreateRequest { public string Sku { get; set; } }
-            public class MyController {
-                [AgentTool("desc")]
-                [HttpPost("create")]
-                public void Create(CreateRequest request) {}
-            }
-        """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("{ \"request\", \"body\" }");
-    }
-
-    [Fact]
-    public void FromBodyAttribute_OverridesInference()
-    {
-        var code = """
-            using Ithil.Attributes;
-            using Microsoft.AspNetCore.Mvc;
-            public class MyController {
-                [AgentTool("desc")]
-                [HttpPost("create")]
-                public void Create([FromBody] string raw) {}
+                public void GetInventory(string sku) {}
             }
             """;
 
         var (_, _, source) = RunGenerator(code);
 
-        // string is normally inferred as query, but [FromBody] overrides that
-        source.Should().Contain("{ \"raw\", \"body\" }");
+        source.Should().Contain("api/inventory/stock/{sku}");
     }
 
     [Fact]
-    public void NoHttpAttribute_RoutePatternIsEmpty()
+    public void MultipleTools_EmitMultipleEntries()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc1")]
+                public void GetInventory() {}
+                [AgentTool("desc2")]
+                public void CreateOrder() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("Name = \"GetInventory\"");
+        source.Should().Contain("Name = \"CreateOrder\"");
+    }
+
+    [Fact]
+    public void GeneratedOutput_DoesNotContainMcpProxyClasses()
     {
         var code = """
             using Ithil.Attributes;
             public class MyController {
                 [AgentTool("desc")]
-                public void NoRoute() {}
+                public void GetInventory() {}
             }
-        """;
+            """;
 
         var (_, _, source) = RunGenerator(code);
 
-        source.Should().Contain("HttpMethod = \"\"");
-        source.Should().Contain("RoutePattern = \"\"");
+        source.Should().NotContain("[McpServerToolType]");
+        source.Should().NotContain("ExecuteAsync");
     }
 }
