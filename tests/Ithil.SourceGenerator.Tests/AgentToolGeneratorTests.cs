@@ -226,7 +226,7 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
-    public void SingleTool_EmitsHttpMethodAndRoutePatternFields()
+    public void NoHttpVerbAttribute_EmitsEmptyHttpMethod()
     {
         var code = """
             using Ithil.Attributes;
@@ -238,8 +238,63 @@ public class AgentToolGeneratorTests
 
         var (_, _, source) = RunGenerator(code);
 
-        source.Should().Contain("HttpMethod");
-        source.Should().Contain("RoutePattern");
+        source.Should().Contain("HttpMethod = \"\"");
+    }
+
+    [Fact]
+    public void HttpGetAttribute_EmitsGetVerb()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("items")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod = \"GET\"");
+    }
+
+    [Fact]
+    public void ParameterSources_RouteQueryAndBody_InferredCorrectly()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("items/{sku}")]
+                public void GetInventory(string sku, string filter, MyBody payload) {}
+            }
+            public class MyBody {}
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"sku\", \"route\" }");
+        source.Should().Contain("{ \"filter\", \"query\" }");
+        source.Should().Contain("{ \"payload\", \"body\" }");
+    }
+
+    [Fact]
+    public void AllowWrite_DefaultsFalse()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("AllowWrite = false");
     }
 
     [Fact]
