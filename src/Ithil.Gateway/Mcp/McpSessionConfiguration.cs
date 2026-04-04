@@ -1,4 +1,5 @@
 using Ithil.Core.Interfaces;
+using Ithil.Gateway.Transforms;
 using ModelContextProtocol.Server;
 
 namespace Ithil.Gateway.Mcp;
@@ -22,6 +23,7 @@ public static class McpSessionConfiguration
         var toolRegistry = context.RequestServices.GetRequiredService<IToolRegistry>();
         var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
         var registryOptions = context.RequestServices.GetRequiredService<ToolRegistryOptions>();
+        var governance = context.RequestServices.GetRequiredService<ToolCallGovernancePipeline>();
 
         var allowlist = await allowlistService.TryGetToolAllowlistAsync(agentId);
         var allTools = await toolRegistry.GetToolsAsync(cancellationToken);
@@ -33,7 +35,7 @@ public static class McpSessionConfiguration
         options.ToolCollection = new McpServerPrimitiveCollection<McpServerTool>();
         foreach (var tool in allowedTools)
         {
-            var fn = new ToolProxyAIFunction(tool, registryOptions.DownstreamBaseUrl, httpClientFactory);
+            var fn = new ToolProxyAIFunction(tool, registryOptions.DownstreamBaseUrl, httpClientFactory, agentId, governance);
             options.ToolCollection.Add(McpServerTool.Create(fn));
         }
     }

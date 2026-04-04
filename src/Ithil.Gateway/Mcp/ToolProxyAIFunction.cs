@@ -1,17 +1,20 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Ithil.Core.Models;
+using Ithil.Gateway.Transforms;
 using Microsoft.Extensions.AI;
 
 namespace Ithil.Gateway.Mcp;
 
 /// <summary>
-/// Forwards MCP tool calls to the downstream HTTP API.
+/// Forwards MCP tool calls to the downstream HTTP API through the governance pipeline.
 /// </summary>
 internal sealed class ToolProxyAIFunction(
     ToolRegistryEntry tool,
     string downstreamBaseUrl,
-    IHttpClientFactory httpClientFactory) : AIFunction
+    IHttpClientFactory httpClientFactory,
+    string agentId,
+    ToolCallGovernancePipeline governance) : AIFunction
 {
     public override string Name => tool.Name;
     public override string Description => tool.Description;
@@ -25,8 +28,16 @@ internal sealed class ToolProxyAIFunction(
             arguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
         var request = ToolCallRouter.BuildRequest(tool, downstreamBaseUrl, argsJson);
         var client = httpClientFactory.CreateClient("downstream");
-        var response = await client.SendAsync(request, cancellationToken);
-        return await response.Content.ReadAsStringAsync(cancellationToken);
+
+        return await governance.ExecuteAsync(
+            agentId,
+            tool.Name,
+            async () =>
+            {
+                var response = await client.SendAsync(request, cancellationToken);
+                return await response.Content.ReadAsStringAsync(cancellationToken);
+            },
+            cancellationToken);
     }
 
     private static JsonElement BuildSchema(McpInputSchema schema)

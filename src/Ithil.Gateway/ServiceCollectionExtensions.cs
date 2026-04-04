@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<RequestTransformPipeline>();
         services.AddScoped<ResponseTransformPipeline>();
+        services.AddScoped<ToolCallGovernancePipeline>();
 
         var tokenValidationParameters = BuildTokenValidationParameters(configuration);
         services.AddSingleton(tokenValidationParameters);
