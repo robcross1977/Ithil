@@ -34,7 +34,7 @@ public class ToolCallGovernancePipeline(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var isWithinBudget = await budgetEngine.IsWithinBudgetAsync(agentId);
+        var isWithinBudget = await budgetEngine.IsWithinBudgetAsync(agentId, cancellationToken);
         if (!isWithinBudget)
         {
             var deniedTraceId = traceIdFactory.Create();
@@ -62,9 +62,9 @@ public class ToolCallGovernancePipeline(
         {
             TraceId = traceId, AgentId = agentId, ToolName = toolName,
             Status = "pending", Timestamp = DateTime.UtcNow.ToString("O"),
-        });
+        }, cancellationToken);
 
-        var result = await TryAsync(() => RunGovernedCallAsync(agentId, toolName, traceId, stopwatch, invoke)).Try();
+        var result = await TryAsync(() => RunGovernedCallAsync(agentId, toolName, traceId, stopwatch, invoke, cancellationToken)).Try();
 
         await result.Match(
             Succ: _ => Task.CompletedTask,
@@ -76,14 +76,14 @@ public class ToolCallGovernancePipeline(
                     Status = "error", TokensUsed = 0,
                     Timestamp = DateTime.UtcNow.ToString("O"),
                     LatencyMs = stopwatch.ElapsedMilliseconds,
-                });
+                }, cancellationToken);
                 await auditLogger.WriteAsync(new AuditRecord
                 {
                     Timestamp = DateTime.UtcNow.ToString("O"), TraceId = traceId,
                     AgentId = agentId, ToolName = toolName, Outcome = "error",
                     ErrorMessage = ex.Message,
                     LatencyMs = (int?)stopwatch.ElapsedMilliseconds,
-                });
+                }, cancellationToken);
             }
         );
 
@@ -119,14 +119,15 @@ public class ToolCallGovernancePipeline(
     }
 
     private async Task<string> RunGovernedCallAsync(
-        string agentId, string toolName, string traceId, Stopwatch stopwatch, Func<Task<string>> invoke)
+        string agentId, string toolName, string traceId, Stopwatch stopwatch, Func<Task<string>> invoke,
+        CancellationToken cancellationToken)
     {
         var rawBody = await invoke();
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(rawBody));
-        var scrubbed = await privacyFilter.ScrubAsync(stream);
+        var scrubbed = await privacyFilter.ScrubAsync(stream, cancellationToken);
         var tokensUsed = tokenCounter.CountTokens(scrubbed);
 
-        await budgetEngine.RecordUsageAsync(agentId, tokensUsed);
+        await budgetEngine.RecordUsageAsync(agentId, tokensUsed, cancellationToken);
 
         await traceNotifier.NotifyAsync(new AgentTraceEvent
         {
@@ -134,7 +135,7 @@ public class ToolCallGovernancePipeline(
             Status = "success", TokensUsed = tokensUsed,
             Timestamp = DateTime.UtcNow.ToString("O"),
             LatencyMs = stopwatch.ElapsedMilliseconds,
-        });
+        }, cancellationToken);
 
         await auditLogger.WriteAsync(new AuditRecord
         {
@@ -142,7 +143,7 @@ public class ToolCallGovernancePipeline(
             AgentId = agentId, ToolName = toolName, Outcome = "success",
             TokensUsed = tokensUsed, PiiScrubbed = true,
             LatencyMs = (int?)stopwatch.ElapsedMilliseconds,
-        });
+        }, cancellationToken);
 
         return scrubbed;
     }

@@ -22,10 +22,10 @@ internal class NotImplementedAgentIdentityService: IAgentIdentityService
 
 internal class NotImplementedBudgetEngine : IBudgetEngine
 {
-    public Task<bool> IsWithinBudgetAsync(string agentId) =>
+    public Task<bool> IsWithinBudgetAsync(string agentId, CancellationToken cancellationToken = default) =>
         throw new NotImplementedException("BudgetEngine not yet implemented");
 
-    public Task RecordUsageAsync(string agentId, int tokens) =>
+    public Task RecordUsageAsync(string agentId, int tokens, CancellationToken cancellationToken = default) =>
         throw new NotImplementedException("BudgetEngine not yet implemented");
 
     public Task<int> GetUsageAsync(string agentId) =>
@@ -35,17 +35,17 @@ internal class NotImplementedBudgetEngine : IBudgetEngine
 // No-op until TraceNotifier is implemented.
 internal class NotImplementedTraceNotifier : ITraceNotifier
 {
-    public Task NotifyAsync(AgentTraceEvent traceEvent) =>
+    public Task NotifyAsync(AgentTraceEvent traceEvent, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 }
 
 // Pass-through until PrivacyFilter is implemented — returns body unchanged.
 internal class NotImplementedPrivacyFilter : IPrivacyFilter
 {
-    public Task<string> ScrubAsync(Stream body)
+    public Task<string> ScrubAsync(Stream body, CancellationToken cancellationToken = default)
     {
         using var reader = new StreamReader(body);
-        return reader.ReadToEndAsync();
+        return reader.ReadToEndAsync(cancellationToken);
     }
 }
 

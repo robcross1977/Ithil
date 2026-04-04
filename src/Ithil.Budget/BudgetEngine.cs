@@ -23,8 +23,9 @@ public class BudgetEngine(
     /// Returns true if the agent's token usage today is below the daily limit.
     /// Returns true if Redis is unavailable (fail-open policy).
     /// </summary>
-    public async Task<bool> IsWithinBudgetAsync(string agentId)
+    public async Task<bool> IsWithinBudgetAsync(string agentId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var usage = await TryGetUsageAsync(agentId);
         return usage.Match(
             Some: u => u < _options.DefaultDailyTokenLimit,
@@ -34,8 +35,9 @@ public class BudgetEngine(
     /// <summary>
     /// Increments the agent's token usage and sets a 48-hour expiry on the key
     /// </summary>
-    public async Task RecordUsageAsync(string agentId, int tokens)
+    public async Task RecordUsageAsync(string agentId, int tokens, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var key = BudgetKeyFactory.ForToday(agentId);
         await _redis.StringIncrementAsync(key, tokens);
         await _redis.KeyExpireAsync(key, TimeSpan.FromDays(2));

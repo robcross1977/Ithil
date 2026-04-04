@@ -8,7 +8,7 @@ public class AuditLogger(Channel<AuditRecord> channel) : IAuditLogger
 {
     private readonly Channel<AuditRecord> _channel = channel;
 
-    public Task WriteAsync(AuditRecord record)
+    public Task WriteAsync(AuditRecord record, CancellationToken cancellationToken = default)
     {
         _channel.Writer.TryWrite(record);
         return Task.CompletedTask;
