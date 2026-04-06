@@ -39,6 +39,29 @@ public class ToolCallGovernancePipelineTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_EmitsDeniedTraceAndAudit_WhenBudgetExceeded()
+    {
+        _budgetEngine.IsWithinBudgetAsync("agent-1").Returns(false);
+        var pipeline = CreatePipeline();
+
+        var act = () => pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        await _traceNotifier.Received(1).NotifyAsync(
+            Arg.Is<AgentTraceEvent>(e =>
+                e.AgentId == "agent-1" &&
+                e.ToolName == "GetInventory" &&
+                e.Status == "denied"));
+
+        await _auditLogger.Received(1).WriteAsync(
+            Arg.Is<AuditRecord>(r =>
+                r.AgentId == "agent-1" &&
+                r.ToolName == "GetInventory" &&
+                r.Outcome == "denied"));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ScrubsResponseAndRecordsUsage_OnSuccess()
     {
         var pipeline = CreatePipeline();
@@ -133,5 +156,39 @@ public class ToolCallGovernancePipelineTests
         await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
 
         traceStatuses.Should().Contain("pending");
+    }
+
+    [Fact]
+    public async Task RecordCacheHitAsync_EmitsCacheHitTraceAndAudit()
+    {
+        var pipeline = CreatePipeline();
+
+        await pipeline.RecordCacheHitAsync("agent-1", "GetInventory");
+
+        await _traceNotifier.Received(1).NotifyAsync(
+            Arg.Is<AgentTraceEvent>(e =>
+                e.AgentId == "agent-1" &&
+                e.ToolName == "GetInventory" &&
+                e.Status == "cache-hit" &&
+                e.TokensUsed == 0));
+
+        await _auditLogger.Received(1).WriteAsync(
+            Arg.Is<AuditRecord>(r =>
+                r.AgentId == "agent-1" &&
+                r.ToolName == "GetInventory" &&
+                r.Outcome == "cache-hit" &&
+                r.CacheHit == true &&
+                r.TokensUsed == 0));
+    }
+
+    [Fact]
+    public async Task RecordCacheHitAsync_DoesNotCheckOrRecordBudget()
+    {
+        var pipeline = CreatePipeline();
+
+        await pipeline.RecordCacheHitAsync("agent-1", "GetInventory");
+
+        await _budgetEngine.DidNotReceive().IsWithinBudgetAsync(Arg.Any<string>());
+        await _budgetEngine.DidNotReceive().RecordUsageAsync(Arg.Any<string>(), Arg.Any<int>());
     }
 }

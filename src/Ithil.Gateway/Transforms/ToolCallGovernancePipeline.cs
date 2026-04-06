@@ -36,7 +36,22 @@ public class ToolCallGovernancePipeline(
 
         var isWithinBudget = await budgetEngine.IsWithinBudgetAsync(agentId);
         if (!isWithinBudget)
+        {
+            var deniedTraceId = traceIdFactory.Create();
+            await traceNotifier.NotifyAsync(new AgentTraceEvent
+            {
+                TraceId = deniedTraceId, AgentId = agentId, ToolName = toolName,
+                Status = "denied", TokensUsed = 0,
+                Timestamp = DateTime.UtcNow.ToString("O"),
+            });
+            await auditLogger.WriteAsync(new AuditRecord
+            {
+                Timestamp = DateTime.UtcNow.ToString("O"), TraceId = deniedTraceId,
+                AgentId = agentId, ToolName = toolName, Outcome = "denied",
+                ErrorMessage = "Budget exceeded",
+            });
             throw new InvalidOperationException($"Agent '{agentId}' has exceeded its token budget.");
+        }
 
         var traceId = traceIdFactory.Create();
         var stopwatch = Stopwatch.StartNew();
@@ -80,6 +95,27 @@ public class ToolCallGovernancePipeline(
                 ExceptionDispatchInfo.Capture(ex).Throw();
                 return string.Empty; // unreachable; satisfies compiler
             });
+    }
+
+    /// <summary>
+    /// Records a cache-hit trace event and audit entry without consuming budget or calling downstream.
+    /// </summary>
+    public async Task RecordCacheHitAsync(string agentId, string toolName)
+    {
+        var traceId = traceIdFactory.Create();
+        await traceNotifier.NotifyAsync(new AgentTraceEvent
+        {
+            TraceId = traceId, AgentId = agentId, ToolName = toolName,
+            Status = "cache-hit", TokensUsed = 0,
+            Timestamp = DateTime.UtcNow.ToString("O"),
+            LatencyMs = 0,
+        });
+        await auditLogger.WriteAsync(new AuditRecord
+        {
+            Timestamp = DateTime.UtcNow.ToString("O"), TraceId = traceId,
+            AgentId = agentId, ToolName = toolName, Outcome = "cache-hit",
+            TokensUsed = 0, CacheHit = true,
+        });
     }
 
     private async Task<string> RunGovernedCallAsync(

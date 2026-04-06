@@ -38,7 +38,10 @@ internal sealed class ToolProxyAIFunction(
         // made recently, avoiding a round-trip to the downstream API.
         var cached = await semanticCache.TryGetAsync(tool.Name, argsDict);
         if (cached.IsSome)
+        {
+            await governance.RecordCacheHitAsync(agentId, tool.Name);
             return cached.Case is CacheResult hit ? hit.SerializedResponse : null;
+        }
 
         var request = ToolCallRouter.BuildRequest(tool, downstreamBaseUrl, argsJson);
         var client = httpClientFactory.CreateClient("downstream");
@@ -48,7 +51,8 @@ internal sealed class ToolProxyAIFunction(
             tool.Name,
             async () =>
             {
-                var response = await client.SendAsync(request, cancellationToken);
+                using var response = await client.SendAsync(request, cancellationToken);
+                response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync(cancellationToken);
             },
             cancellationToken);

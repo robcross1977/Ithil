@@ -17,7 +17,7 @@ internal class ToolAllowlistService(IAgentConfigRepository agentConfigRepository
         var config = await agentConfigRepository.GetAsync(agentId);
 
         return config.Match(
-            Some: c => c.AllowedTools.IsEmpty || c.AllowedTools.Contains(toolName),
+            Some: c => c.AllowedTools.IsEmpty || c.AllowedTools.Exists(t => string.Equals(t, toolName, StringComparison.OrdinalIgnoreCase)),
             None: () => false);
     }
 

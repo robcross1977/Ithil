@@ -14,23 +14,15 @@ namespace Ithil.Gateway.Tests.Mcp;
 public class McpSessionConfigurationTests
 {
     // Three sample tools used across tests.
-    private static readonly ToolRegistryEntry GetInventory = new()
-    {
-        Name = "GetInventory", Description = "Gets stock levels",
-        InputSchema = new McpInputSchema { Properties = [], Required = [] }
-    };
+    // ToolRegistryEntry is a positional record — use the primary constructor with dummy routing fields.
+    private static readonly ToolRegistryEntry GetInventory =
+        new("GetInventory", "Gets stock levels", false, 2000, null, "", "", new(), new());
 
-    private static readonly ToolRegistryEntry CreateOrder = new()
-    {
-        Name = "CreateOrder", Description = "Creates an order",
-        InputSchema = new McpInputSchema { Properties = [], Required = [] }
-    };
+    private static readonly ToolRegistryEntry CreateOrder =
+        new("CreateOrder", "Creates an order", false, 2000, null, "", "", new(), new());
 
-    private static readonly ToolRegistryEntry DeleteUser = new()
-    {
-        Name = "DeleteUser", Description = "Deletes a user",
-        InputSchema = new McpInputSchema { Properties = [], Required = [] }
-    };
+    private static readonly ToolRegistryEntry DeleteUser =
+        new("DeleteUser", "Deletes a user", false, 2000, null, "", "", new(), new());
 
     // Builds a minimal HttpContext whose RequestServices contains all dependencies
     // that ConfigureSessionAsync will resolve via GetRequiredService.
