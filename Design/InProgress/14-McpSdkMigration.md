@@ -38,7 +38,7 @@ it lives in ASP.NET Core middleware and DI services that wrap the SDK, not insid
 - `Ithil.Privacy` — privacy filter pipeline is untouched; runs inside each tool proxy after the downstream response is received, before returning to the SDK
 - `Ithil.Gateway` circuit breaker, SignalR tracing, JWT auth — all untouched
 - `Ithil.Attributes` — `[AgentTool]` attribute is untouched
-- `Ithil.SourceGenerator` — emits `[McpServerTool]` wrappers instead of manifest JSON (see below)
+- `Ithil.SourceGenerator` — emits `SchemaRegistry.g.cs` (unchanged); proxy class approach was abandoned (see below)
 - YARP configuration — runs as catch-all middleware after `MapMcp()`, no conflict
 
 ---
@@ -210,10 +210,9 @@ Ithil.Gateway/
             registers only allowed McpServerTool instances for this session
 
 Ithil.SourceGenerator/
-└── McpToolProxyEmitter.cs                       — NEW emitter
-    Replaces manifest emitter.
-    Input:  [AgentTool]-decorated method metadata
-    Output: [McpServerTool] proxy class that calls downstream route via HttpClient
+└── AgentToolGenerator.cs (unchanged)
+    Still emits SchemaRegistry.g.cs with ToolEntry records.
+    Proxy class approach was abandoned — see Source Generator Change section.
 ```
 
 ### Deleted (see table above)
@@ -222,20 +221,14 @@ Ithil.SourceGenerator/
 
 ## Open Questions / Blockers
 
-### SDK API — Per-Session Tool Filtering (BLOCKED)
-The `McpSessionConfiguration` tests (`Session_FiltersTools_ByAgentAllowlist`, `Session_RejectsCall_ForDisallowedTool`) are **on hold** until the exact SDK API for per-session filtering is confirmed. The type `McpServerSessionOptions` and the `ConfigureSessionOptions` callback signature vary across preview versions of `ModelContextProtocol.AspNetCore`. Do not write `McpSessionConfiguration.cs` or its tests until the installed package version's API is verified (e.g. by browsing its source or IntelliSense).
+### ~~SDK API — Per-Session Tool Filtering~~ ✅ DONE
+`McpSessionConfiguration.cs` implemented using `McpServerOptions.ToolCollection` and `McpServerTool.Create(AIFunction)`. SDK API confirmed against installed package.
 
-### Auth Gap — `/mcp` Requires `.RequireAuthorization()`
-The current `MapMcpEndpoints()` call has no `.RequireAuthorization()`. The `McpPost_Returns401_WithNoToken` test cannot pass until JWT auth middleware is configured and `app.MapMcp()` (or its route group) has `.RequireAuthorization()` applied. This must be done as part of the `Program.cs` migration step.
+### ~~Auth Gap — `/mcp` Requires `.RequireAuthorization()`~~ ✅ DONE
+JWT middleware configured and `app.MapMcp()` route group has `.RequireAuthorization()` applied.
 
 ### ~~IToolAllowlistService — Missing Enumeration Method~~ ✅ DONE
-
 `TryGetToolAllowlistAsync(string agentId)` added to `IToolAllowlistService` and implemented in `ToolAllowlistService`.
-
-### Generated Proxy Parameters — Typed Later
-The `McpToolProxies.g.cs` emitter currently generates all `ExecuteAsync` parameters as `string`. This is intentional for the initial working shape. The SDK reflects on the method signature, so type fidelity matters for correct schema generation.
-
-**TODO:** After the basic proxy pipeline is working end-to-end, revisit `GenerateMcpProxyClasses` in `AgentToolGenerator.cs` to emit the correct C# type for each parameter using `TypeMapper.ToJsonType` (already exists) mapped back to C# primitives (e.g. `integer` → `int`, `boolean` → `bool`, etc.).
 
 ---
 
@@ -272,12 +265,6 @@ Tests live in `Ithil.Gateway.Tests/Mcp/` and `Ithil.SourceGenerator.Tests/`.
 - Downstream returns a response containing a PII marker
 - Privacy filter is registered in DI
 - Assert the value returned from `ExecuteAsync` has PII scrubbed
-
-### Test: SourceGenerator_EmitsMcpServerToolClass_ForAgentToolMethod
-- Input: a C# method decorated with `[AgentTool(Route = "/api/inventory")]`
-- Run source generator
-- Assert output contains a class with `[McpServerToolType]` and a method with `[McpServerTool]`
-- Assert the generated method calls the correct route
 
 ### Test: SseEndpoint_SetsCorrectContentType
 - Call `GET /mcp/sse` with valid JWT

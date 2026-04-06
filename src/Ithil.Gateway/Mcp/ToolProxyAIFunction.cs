@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Transforms;
 using Microsoft.Extensions.AI;
@@ -8,14 +9,20 @@ namespace Ithil.Gateway.Mcp;
 
 /// <summary>
 /// Forwards MCP tool calls to the downstream HTTP API through the governance pipeline.
+/// Checks the semantic cache before calling downstream and writes back on success.
 /// </summary>
 internal sealed class ToolProxyAIFunction(
     ToolRegistryEntry tool,
     string downstreamBaseUrl,
     IHttpClientFactory httpClientFactory,
     string agentId,
-    ToolCallGovernancePipeline governance) : AIFunction
+    ToolCallGovernancePipeline governance,
+    ISemanticCache semanticCache) : AIFunction
 {
+    // Default TTL for cached tool responses. Long enough to be useful; short enough to
+    // avoid serving stale inventory/order data for more than a working day.
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(8);
+
     public override string Name => tool.Name;
     public override string Description => tool.Description;
     public override JsonElement JsonSchema => BuildSchema(tool.InputSchema);
@@ -24,12 +31,19 @@ internal sealed class ToolProxyAIFunction(
         AIFunctionArguments arguments,
         CancellationToken cancellationToken)
     {
-        var argsJson = JsonSerializer.SerializeToElement(
-            arguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        var argsDict = arguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        var argsJson = JsonSerializer.SerializeToElement(argsDict);
+
+        // Check semantic cache first — returns a hit if a sufficiently similar call was
+        // made recently, avoiding a round-trip to the downstream API.
+        var cached = await semanticCache.TryGetAsync(tool.Name, argsDict);
+        if (cached.IsSome)
+            return cached.Case is CacheResult hit ? hit.SerializedResponse : null;
+
         var request = ToolCallRouter.BuildRequest(tool, downstreamBaseUrl, argsJson);
         var client = httpClientFactory.CreateClient("downstream");
 
-        return await governance.ExecuteAsync(
+        var result = await governance.ExecuteAsync(
             agentId,
             tool.Name,
             async () =>
@@ -38,6 +52,11 @@ internal sealed class ToolProxyAIFunction(
                 return await response.Content.ReadAsStringAsync(cancellationToken);
             },
             cancellationToken);
+
+        // Write back to cache so future similar calls can skip the downstream hop.
+        await semanticCache.SetAsync(tool.Name, argsDict, result, CacheTtl);
+
+        return result;
     }
 
     private static JsonElement BuildSchema(McpInputSchema schema)

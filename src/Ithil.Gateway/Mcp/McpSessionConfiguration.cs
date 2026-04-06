@@ -24,18 +24,24 @@ public static class McpSessionConfiguration
         var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
         var registryOptions = context.RequestServices.GetRequiredService<ToolRegistryOptions>();
         var governance = context.RequestServices.GetRequiredService<ToolCallGovernancePipeline>();
+        var semanticCache = context.RequestServices.GetRequiredService<ISemanticCache>();
 
         var allowlist = await allowlistService.TryGetToolAllowlistAsync(agentId);
         var allTools = await toolRegistry.GetToolsAsync(cancellationToken);
 
         var allowedTools = allowlist.Match(
-            Some: names => allTools.Filter(t => names.Contains(t.Name)),
+            Some: names =>
+            {
+                // HashSet for O(1) per-tool lookup instead of O(|allowlist|) per tool.
+                var nameSet = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return allTools.Filter(t => nameSet.Contains(t.Name));
+            },
             None: () => allTools);
 
         options.ToolCollection = new McpServerPrimitiveCollection<McpServerTool>();
         foreach (var tool in allowedTools)
         {
-            var fn = new ToolProxyAIFunction(tool, registryOptions.DownstreamBaseUrl, httpClientFactory, agentId, governance);
+            var fn = new ToolProxyAIFunction(tool, registryOptions.DownstreamBaseUrl, httpClientFactory, agentId, governance, semanticCache);
             options.ToolCollection.Add(McpServerTool.Create(fn));
         }
     }

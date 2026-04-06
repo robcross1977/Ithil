@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
@@ -31,12 +32,16 @@ public class ToolCallGovernancePipeline(
         Func<Task<string>> invoke,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var isWithinBudget = await budgetEngine.IsWithinBudgetAsync(agentId);
         if (!isWithinBudget)
             throw new InvalidOperationException($"Agent '{agentId}' has exceeded its token budget.");
 
         var traceId = traceIdFactory.Create();
         var stopwatch = Stopwatch.StartNew();
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         await traceNotifier.NotifyAsync(new AgentTraceEvent
         {
@@ -67,9 +72,14 @@ public class ToolCallGovernancePipeline(
             }
         );
 
+        // Preserve original stack trace when rethrowing downstream failures.
         return result.Match(
             Succ: s => s,
-            Fail: ex => throw ex);
+            Fail: ex =>
+            {
+                ExceptionDispatchInfo.Capture(ex).Throw();
+                return string.Empty; // unreachable; satisfies compiler
+            });
     }
 
     private async Task<string> RunGovernedCallAsync(

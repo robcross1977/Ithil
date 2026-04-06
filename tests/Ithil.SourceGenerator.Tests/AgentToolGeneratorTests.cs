@@ -296,4 +296,109 @@ public class AgentToolGeneratorTests
         source.Should().NotContain("[McpServerToolType]");
         source.Should().NotContain("ExecuteAsync");
     }
+
+    [Fact]
+    public void HttpGetAttribute_EmitsGetHttpMethodValue()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod = \"GET\"");
+    }
+
+    [Fact]
+    public void HttpPostAttribute_EmitsPostHttpMethodValue()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost]
+                public void CreateOrder() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("HttpMethod = \"POST\"");
+    }
+
+    [Fact]
+    public void NoHttpAttribute_EmitsEmptyHttpMethod()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        // Without an explicit HTTP verb, the generator emits an empty string.
+        source.Should().Contain("HttpMethod = \"\"");
+    }
+
+    [Fact]
+    public void RouteTemplateParameter_EmittedAsRouteSource_InParameterSources()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/inventory")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("stock/{sku}")]
+                public void GetInventory(string sku) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        // sku appears in {sku} in the route template — generator classifies it as "route".
+        source.Should().Contain("{ \"sku\", \"route\" }");
+    }
+
+    [Fact]
+    public void AllowWrite_DefaultsFalse_WhenNotSpecified()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("AllowWrite = false");
+    }
+
+    [Fact]
+    public void AllowWrite_EmitsTrue_WhenExplicitlySet()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc", AllowWrite = true)]
+                public void CreateOrder() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("AllowWrite = true");
+    }
 }
