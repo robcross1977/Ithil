@@ -18,7 +18,14 @@ public static class McpSessionConfiguration
         McpServerOptions options,
         CancellationToken cancellationToken)
     {
-        var agentId = context.User.FindFirst("agent_id")?.Value ?? string.Empty;
+        var agentId = context.User.FindFirst("agent_id")?.Value;
+        if (string.IsNullOrEmpty(agentId))
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("agent_id claim is required.");
+            return;
+        }
+
         var allowlistService = context.RequestServices.GetRequiredService<IToolAllowlistService>();
         var toolRegistry = context.RequestServices.GetRequiredService<IToolRegistry>();
         var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();

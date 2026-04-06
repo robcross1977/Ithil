@@ -94,13 +94,12 @@ if (app.Environment.IsDevelopment())
     );
 }
 
+app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
 app.MapMcp("/mcp").RequireAuthorization();
-
-app.UseHttpsRedirection();
 app.MapReverseProxy();
 
 app.Run();
