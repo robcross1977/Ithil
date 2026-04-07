@@ -43,13 +43,13 @@ public class ToolCallGovernancePipeline(
                 TraceId = deniedTraceId, AgentId = agentId, ToolName = toolName,
                 Status = "denied", TokensUsed = 0,
                 Timestamp = DateTime.UtcNow.ToString("O"),
-            });
+            }, cancellationToken);
             await auditLogger.WriteAsync(new AuditRecord
             {
                 Timestamp = DateTime.UtcNow.ToString("O"), TraceId = deniedTraceId,
                 AgentId = agentId, ToolName = toolName, Outcome = "denied",
-                ErrorMessage = "Budget exceeded",
-            });
+                ErrorMessage = $"Agent '{agentId}' has exceeded its token budget.",
+            }, cancellationToken);
             throw new InvalidOperationException($"Agent '{agentId}' has exceeded its token budget.");
         }
 
@@ -70,17 +70,18 @@ public class ToolCallGovernancePipeline(
             Succ: _ => Task.CompletedTask,
             Fail: async ex =>
             {
+                var status = ex is OperationCanceledException ? "cancelled" : "error";
                 await traceNotifier.NotifyAsync(new AgentTraceEvent
                 {
                     TraceId = traceId, AgentId = agentId, ToolName = toolName,
-                    Status = "error", TokensUsed = 0,
+                    Status = status, TokensUsed = 0,
                     Timestamp = DateTime.UtcNow.ToString("O"),
                     LatencyMs = stopwatch.ElapsedMilliseconds,
                 }, cancellationToken);
                 await auditLogger.WriteAsync(new AuditRecord
                 {
                     Timestamp = DateTime.UtcNow.ToString("O"), TraceId = traceId,
-                    AgentId = agentId, ToolName = toolName, Outcome = "error",
+                    AgentId = agentId, ToolName = toolName, Outcome = status,
                     ErrorMessage = ex.Message,
                     LatencyMs = (int?)stopwatch.ElapsedMilliseconds,
                 }, cancellationToken);

@@ -174,7 +174,7 @@ public class AgentToolGeneratorTests
             """;
 
         var (_, diagnostics, _) = RunGenerator(code);
-        diagnostics.Should().Contain(d => d.Id == "ITHIL001");
+        diagnostics.Should().Contain(d => d.Severity == DiagnosticSeverity.Warning && d.Id == "ITHIL001");
     }
 
     [Fact]

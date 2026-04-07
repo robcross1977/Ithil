@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
@@ -52,10 +53,10 @@ public class McpSessionConfigurationTests
         var context = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
         // Inject the agent_id claim so ConfigureSessionAsync can find it.
-        var identity = new System.Security.Claims.ClaimsIdentity(
-            [new System.Security.Claims.Claim("agent_id", agentId)],
+        var identity = new ClaimsIdentity(
+            [new Claim("agent_id", agentId)],
             authenticationType: "Test");
-        context.User = new System.Security.Claims.ClaimsPrincipal(identity);
+        context.User = new ClaimsPrincipal(identity);
 
         return context;
     }
@@ -65,12 +66,12 @@ public class McpSessionConfigurationTests
     {
         var allowlistService = Substitute.For<IToolAllowlistService>();
         allowlistService.TryGetToolAllowlistAsync("agent-A")
-            .Returns(Option<LanguageExt.Seq<string>>.Some(
-                LanguageExt.Seq.create("GetInventory", "CreateOrder")));
+            .Returns(Option<Seq<string>>.Some(
+                Seq.create("GetInventory", "CreateOrder")));
 
         var toolRegistry = Substitute.For<IToolRegistry>();
         toolRegistry.GetToolsAsync(Arg.Any<CancellationToken>())
-            .Returns(LanguageExt.Seq.create(GetInventory, CreateOrder, DeleteUser));
+            .Returns(Seq.create(GetInventory, CreateOrder, DeleteUser));
 
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
@@ -86,11 +87,11 @@ public class McpSessionConfigurationTests
     {
         var allowlistService = Substitute.For<IToolAllowlistService>();
         allowlistService.TryGetToolAllowlistAsync("agent-A")
-            .Returns(Option<LanguageExt.Seq<string>>.None);
+            .Returns(Option<Seq<string>>.None);
 
         var toolRegistry = Substitute.For<IToolRegistry>();
         toolRegistry.GetToolsAsync(Arg.Any<CancellationToken>())
-            .Returns(LanguageExt.Seq.create(GetInventory, CreateOrder, DeleteUser));
+            .Returns(Seq.create(GetInventory, CreateOrder, DeleteUser));
 
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
@@ -106,11 +107,11 @@ public class McpSessionConfigurationTests
     {
         var allowlistService = Substitute.For<IToolAllowlistService>();
         allowlistService.TryGetToolAllowlistAsync("agent-A")
-            .Returns(Option<LanguageExt.Seq<string>>.Some(LanguageExt.Seq<string>.Empty));
+            .Returns(Option<Seq<string>>.Some(Seq<string>.Empty));
 
         var toolRegistry = Substitute.For<IToolRegistry>();
         toolRegistry.GetToolsAsync(Arg.Any<CancellationToken>())
-            .Returns(LanguageExt.Seq.create(GetInventory, CreateOrder, DeleteUser));
+            .Returns(Seq.create(GetInventory, CreateOrder, DeleteUser));
 
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
@@ -127,12 +128,12 @@ public class McpSessionConfigurationTests
         // Allowlist uses uppercase; tool registry names are mixed case — should still match.
         var allowlistService = Substitute.For<IToolAllowlistService>();
         allowlistService.TryGetToolAllowlistAsync("agent-A")
-            .Returns(Option<LanguageExt.Seq<string>>.Some(
-                LanguageExt.Seq.create("GETINVENTORY")));
+            .Returns(Option<Seq<string>>.Some(
+                Seq.create("GETINVENTORY")));
 
         var toolRegistry = Substitute.For<IToolRegistry>();
         toolRegistry.GetToolsAsync(Arg.Any<CancellationToken>())
-            .Returns(LanguageExt.Seq.create(GetInventory, CreateOrder));
+            .Returns(Seq.create(GetInventory, CreateOrder));
 
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();

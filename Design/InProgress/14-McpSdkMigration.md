@@ -230,6 +230,11 @@ JWT middleware configured and `app.MapMcp()` route group has `.RequireAuthorizat
 ### ~~IToolAllowlistService — Missing Enumeration Method~~ ✅ DONE
 `TryGetToolAllowlistAsync(string agentId)` added to `IToolAllowlistService` and implemented in `ToolAllowlistService`.
 
+### ~~Generated Proxy Classes~~ ✅ SUPERSEDED
+
+The `McpToolProxies.g.cs` proxy approach was abandoned. Instead, `AgentToolGenerator` emits `SchemaRegistry.g.cs` containing `ToolRegistryEntry` records (name, description, HTTP method, route, parameter sources, input schema). `ToolProxyAIFunction` wraps each entry at runtime and forwards calls through `ToolCallGovernancePipeline` to the downstream HTTP API. No generated proxy classes are needed.
+
+
 ---
 
 ## Unit Testing Plan
