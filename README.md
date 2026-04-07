@@ -128,7 +128,21 @@ cd src/Ithil.Gateway
 }
 ```
 
-### Step 3 — Run
+### Step 3 — Download the embedding model
+
+The semantic cache uses a local ONNX model for intent matching. No data leaves your network.
+
+```bash
+# macOS / Linux
+bash scripts/download-models.sh
+
+# Windows (PowerShell)
+.\scripts\download-models.ps1
+```
+
+This downloads `all-MiniLM-L6-v2.onnx` (~22 MB) and `vocab.txt` into `src/Ithil.Gateway/models/`. Run once after cloning. The files are gitignored — they are not checked in.
+
+### Step 4 — Run
 
 ```bash
 dotnet run
@@ -136,7 +150,7 @@ dotnet run
 docker-compose up
 ```
 
-### Step 4 — Point your agent at the gateway
+### Step 5 — Point your agent at the gateway
 
 ```
 POST https://your-gateway/mcp
@@ -412,7 +426,7 @@ Complete `appsettings.json` with all available options:
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | .NET 10+         | Gateway and downstream services                                                                                                          |
 | Redis Stack      | Required for semantic cache (vector search) and budget engine. Plain Redis is **not** sufficient for the cache — use `redis/redis-stack` |
-| ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — place in `models/` relative to the gateway. No internet access required at runtime               |
+| ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — run `scripts/download-models.sh` (or `.ps1`) once after cloning. No internet access required at runtime. |
 
 **Without Redis:** Set `UseInMemory: true` in dev environments. Budget and cache use in-memory fallbacks. Not suitable for production or multi-instance deployments.
 
