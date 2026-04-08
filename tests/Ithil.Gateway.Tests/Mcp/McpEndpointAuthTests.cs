@@ -24,7 +24,8 @@ public class McpEndpointAuthTests
     private const string Audience = "test-audience";
 
     // Builds a minimal ASP.NET Core test app that mirrors the real gateway's auth+MCP setup.
-    private static async Task<HttpClient> BuildTestClientAsync()
+    // Callers must dispose the returned WebApplication with `await using`.
+    private static async Task<WebApplication> BuildTestAppAsync()
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -63,7 +64,7 @@ public class McpEndpointAuthTests
         app.MapMcp("/mcp").RequireAuthorization();
 
         await app.StartAsync();
-        return app.GetTestClient();
+        return app;
     }
 
     private static string BuildValidToken(string agentId = "agent-A")
@@ -83,7 +84,8 @@ public class McpEndpointAuthTests
     [Fact]
     public async Task McpPost_Returns401_WithNoToken()
     {
-        var client = await BuildTestClientAsync();
+        await using var app = await BuildTestAppAsync();
+        var client = app.GetTestClient();
 
         var response = await client.PostAsync("/mcp", null);
 
@@ -93,7 +95,8 @@ public class McpEndpointAuthTests
     [Fact]
     public async Task McpPost_Returns401_WithInvalidToken()
     {
-        var client = await BuildTestClientAsync();
+        await using var app = await BuildTestAppAsync();
+        var client = app.GetTestClient();
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", "invalid.token.value");
@@ -106,7 +109,8 @@ public class McpEndpointAuthTests
     [Fact]
     public async Task McpPost_PassesAuthCheck_WithValidToken()
     {
-        var client = await BuildTestClientAsync();
+        await using var app = await BuildTestAppAsync();
+        var client = app.GetTestClient();
         var token = BuildValidToken();
 
         client.DefaultRequestHeaders.Authorization =

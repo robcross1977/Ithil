@@ -262,16 +262,11 @@ Tests live in `Ithil.Gateway.Tests/Mcp/` and `Ithil.SourceGenerator.Tests/`.
 - Assert `429 Too Many Requests` before SDK processes the request
 
 ### Test: ToolProxy_ForwardsToCorrectDownstreamRoute
-- Register a generated `[McpServerTool]` proxy for `GetInventory` pointing to `/api/inventory`
-- Call the proxy's `ExecuteAsync` with mocked `HttpClient`
+- Register a `ToolProxyAIFunction` for `GetInventory` pointing to `/api/inventory`
+- Call `InvokeCoreAsync` with a mocked `HttpClientFactory`
 - Assert the forwarded request hits `/api/inventory` with correct parameters
 
 ### Test: ToolProxy_AppliesPrivacyFilter_OnResponse
 - Downstream returns a response containing a PII marker
 - Privacy filter is registered in DI
 - Assert the value returned from `ExecuteAsync` has PII scrubbed
-
-### Test: SseEndpoint_SetsCorrectContentType
-- Call `GET /mcp/sse` with valid JWT
-- Assert response `Content-Type: text/event-stream`
-- Assert response `Cache-Control: no-cache`
