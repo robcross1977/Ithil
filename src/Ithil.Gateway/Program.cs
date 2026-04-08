@@ -59,7 +59,7 @@ var app = builder.Build();
 // Resolve eagerly so the tiktoken download happens at startup, not on the first live request.
 app.Services.GetRequiredService<ITokenCounter>();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapHub<TraceHub>("/hubs/trace");
