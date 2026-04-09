@@ -39,7 +39,7 @@ internal sealed class ToolProxyAIFunction(
         var cached = await semanticCache.TryGetAsync(tool.Name, argsDict);
         if (cached.IsSome)
         {
-            await governance.RecordCacheHitAsync(agentId, tool.Name);
+            await governance.RecordCacheHitAsync(agentId, tool.Name, cancellationToken);
             return cached.Case is CacheResult hit ? hit.SerializedResponse : null;
         }
 

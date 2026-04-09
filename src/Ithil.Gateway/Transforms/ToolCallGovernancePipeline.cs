@@ -77,14 +77,16 @@ public class ToolCallGovernancePipeline(
                     Status = status, TokensUsed = 0,
                     Timestamp = DateTime.UtcNow.ToString("O"),
                     LatencyMs = stopwatch.ElapsedMilliseconds,
-                }, cancellationToken);
+                // Use CancellationToken.None so telemetry is always recorded, even when
+                // the request token is already cancelled (which caused this failure path).
+                }, CancellationToken.None);
                 await auditLogger.WriteAsync(new AuditRecord
                 {
                     Timestamp = DateTime.UtcNow.ToString("O"), TraceId = traceId,
                     AgentId = agentId, ToolName = toolName, Outcome = status,
                     ErrorMessage = ex.Message,
                     LatencyMs = (int?)stopwatch.ElapsedMilliseconds,
-                }, cancellationToken);
+                }, CancellationToken.None);
             }
         );
 

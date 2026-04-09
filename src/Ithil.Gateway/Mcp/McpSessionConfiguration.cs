@@ -22,7 +22,7 @@ public static class McpSessionConfiguration
         if (string.IsNullOrEmpty(agentId))
         {
             context.Response.StatusCode = 403;
-            await context.Response.WriteAsync("agent_id claim is required.");
+            await context.Response.WriteAsync("agent_id claim is required.", cancellationToken);
             return;
         }
 
