@@ -12,9 +12,9 @@ public class TraceNotifier(IHubContext<TraceHub> hub) : ITraceNotifier
     private readonly IHubContext<TraceHub> _hub = hub;
 
     /// <inheritdoc />
-    public Task NotifyAsync(AgentTraceEvent traceEvent) =>
+    public Task NotifyAsync(AgentTraceEvent traceEvent, CancellationToken cancellationToken = default) =>
         Task.WhenAll(
-            _hub.Clients.Group($"agent:{traceEvent.AgentId}").SendAsync("TraceEvent", traceEvent),
-            _hub.Clients.Group("dashboard-all").SendAsync("TraceEvent", traceEvent)
+            _hub.Clients.Group($"agent:{traceEvent.AgentId}").SendAsync("TraceEvent", traceEvent, cancellationToken),
+            _hub.Clients.Group("dashboard-all").SendAsync("TraceEvent", traceEvent, cancellationToken)
         );
 }

@@ -23,10 +23,10 @@ public partial class PrivacyFilterService(PrivacyFilterOptions options) : IPriva
     /// <summary>
     /// Reads the response body stream, applies all PII redaction rules, and returns the scrubbed string.
     /// </summary>
-    public async Task<string> ScrubAsync(Stream responseBody)
+    public async Task<string> ScrubAsync(Stream responseBody, CancellationToken cancellationToken = default)
     {
         using var reader = new StreamReader(responseBody, Encoding.UTF8, leaveOpen: true);
-        var content = await reader.ReadToEndAsync();
+        var content = await reader.ReadToEndAsync(cancellationToken);
 
         if (string.IsNullOrEmpty(content)) return string.Empty;
 

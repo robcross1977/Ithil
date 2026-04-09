@@ -20,6 +20,10 @@ public static partial class ToolCallRouter
         string baseUrl,
         JsonElement arguments)
     {
+        if (string.IsNullOrEmpty(tool.HttpMethod))
+            throw new InvalidOperationException(
+                $"Tool '{tool.Name}' has no HTTP method. Decorate its controller method with [HttpGet], [HttpPost], etc.");
+
         var path = SubstituteRouteParams(tool.RoutePattern, tool.ParameterSources, arguments);
         var url = BuildFullUrl(path, tool.ParameterSources, arguments, baseUrl);
         var request = new HttpRequestMessage(new HttpMethod(tool.HttpMethod), url);

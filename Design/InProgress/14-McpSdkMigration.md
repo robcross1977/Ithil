@@ -36,9 +36,9 @@ it lives in ASP.NET Core middleware and DI services that wrap the SDK, not insid
 
 - `Ithil.Budget` — budget middleware is untouched; fires on the raw HTTP request before the SDK processes the body, so `429` rejections still work correctly
 - `Ithil.Privacy` — privacy filter pipeline is untouched; runs inside each tool proxy after the downstream response is received, before returning to the SDK
-- `Ithil.Gateway` circuit breaker, SignalR tracing, JWT auth — all untouched
+- `Ithil.Gateway` circuit breaker and SignalR tracing — untouched; JWT auth semantics are unchanged but the wiring changes: `/mcp` is now protected via ASP.NET Core `JwtBearer` middleware with `.RequireAuthorization()`
 - `Ithil.Attributes` — `[AgentTool]` attribute is untouched
-- `Ithil.SourceGenerator` — emits `[McpServerTool]` wrappers instead of manifest JSON (see below)
+- `Ithil.SourceGenerator` — emits `SchemaRegistry.g.cs` (unchanged); proxy class approach was abandoned (see below)
 - YARP configuration — runs as catch-all middleware after `MapMcp()`, no conflict
 
 ---
@@ -151,15 +151,23 @@ flowchart TD
 
 ## Source Generator Change
 
-`Ithil.SourceGenerator` currently emits a JSON manifest. After migration it emits
-`[McpServerTool]`-decorated proxy classes instead. The `[AgentTool]` attribute on
-downstream controller actions is the input; the generated proxy class is the output.
+`Ithil.SourceGenerator` **retains the `SchemaRegistry.g.cs` approach** — no change to the emitted output. The proxy class approach (`[McpServerToolType]` generated classes) was abandoned because it requires the MCP server and the `[AgentTool]` methods to be in the same compiled assembly. Ithil is a gateway: it never references downstream assemblies at compile time.
+
+The flow is:
+- Downstream app: `[AgentTool]` method → source generator → `SchemaRegistry.g.cs` (in downstream assembly)
+- Downstream app: `MapIthilSchema()` exposes `GET /ithil/schema` from `SchemaRegistry.Tools`
+- Gateway: `IToolRegistry.GetToolsAsync()` fetches and caches the schema at runtime
+- Gateway: Creates `McpServerTool` instances dynamically from `ToolRegistryEntry` using `McpServerTool.Create(AIFunction)`
+- SDK handles all protocol work from there
 
 ```mermaid
 flowchart LR
     A["[AgentTool] on downstream controller"] --> B[Roslyn Source Generator]
-    B --> C["[McpServerTool] proxy class\nRegistered via AddTool<T>()"]
-    C --> D[SDK discovers and exposes as MCP tool]
+    B --> C["SchemaRegistry.g.cs (in downstream dll)"]
+    C --> D["GET /ithil/schema\nvia MapIthilSchema()"]
+    D --> E["IToolRegistry.GetToolsAsync()\n(gateway, runtime)"]
+    E --> F["McpServerTool.Create(AIFunction)\nper ToolRegistryEntry"]
+    F --> G[SDK exposes as MCP tool]
 ```
 
 ---
@@ -202,13 +210,30 @@ Ithil.Gateway/
             registers only allowed McpServerTool instances for this session
 
 Ithil.SourceGenerator/
-└── McpToolProxyEmitter.cs                       — NEW emitter
-    Replaces manifest emitter.
-    Input:  [AgentTool]-decorated method metadata
-    Output: [McpServerTool] proxy class that calls downstream route via HttpClient
+└── AgentToolGenerator.cs (unchanged)
+    Still emits SchemaRegistry.g.cs with ToolEntry records.
+    Proxy class approach was abandoned — see Source Generator Change section.
 ```
 
 ### Deleted (see table above)
+
+---
+
+## Open Questions / Blockers
+
+### ~~SDK API — Per-Session Tool Filtering~~ ✅ DONE
+`McpSessionConfiguration.cs` implemented using `McpServerOptions.ToolCollection` and `McpServerTool.Create(AIFunction)`. SDK API confirmed against installed package.
+
+### ~~Auth Gap — `/mcp` Requires `.RequireAuthorization()`~~ ✅ DONE
+JWT middleware configured and `app.MapMcp()` route group has `.RequireAuthorization()` applied.
+
+### ~~IToolAllowlistService — Missing Enumeration Method~~ ✅ DONE
+`TryGetToolAllowlistAsync(string agentId)` added to `IToolAllowlistService` and implemented in `ToolAllowlistService`.
+
+### ~~Generated Proxy Classes~~ ✅ SUPERSEDED
+
+The `McpToolProxies.g.cs` proxy approach was abandoned. Instead, `AgentToolGenerator` emits `SchemaRegistry.g.cs` containing `ToolRegistryEntry` records (name, description, HTTP method, route, parameter sources, input schema). `ToolProxyAIFunction` wraps each entry at runtime and forwards calls through `ToolCallGovernancePipeline` to the downstream HTTP API. No generated proxy classes are needed.
+
 
 ---
 
@@ -237,22 +262,11 @@ Tests live in `Ithil.Gateway.Tests/Mcp/` and `Ithil.SourceGenerator.Tests/`.
 - Assert `429 Too Many Requests` before SDK processes the request
 
 ### Test: ToolProxy_ForwardsToCorrectDownstreamRoute
-- Register a generated `[McpServerTool]` proxy for `GetInventory` pointing to `/api/inventory`
-- Call the proxy's `ExecuteAsync` with mocked `HttpClient`
+- Register a `ToolProxyAIFunction` for `GetInventory` pointing to `/api/inventory`
+- Call `InvokeCoreAsync` with a mocked `HttpClientFactory`
 - Assert the forwarded request hits `/api/inventory` with correct parameters
 
 ### Test: ToolProxy_AppliesPrivacyFilter_OnResponse
 - Downstream returns a response containing a PII marker
 - Privacy filter is registered in DI
 - Assert the value returned from `ExecuteAsync` has PII scrubbed
-
-### Test: SourceGenerator_EmitsMcpServerToolClass_ForAgentToolMethod
-- Input: a C# method decorated with `[AgentTool(Route = "/api/inventory")]`
-- Run source generator
-- Assert output contains a class with `[McpServerToolType]` and a method with `[McpServerTool]`
-- Assert the generated method calls the correct route
-
-### Test: SseEndpoint_SetsCorrectContentType
-- Call `GET /mcp/sse` with valid JWT
-- Assert response `Content-Type: text/event-stream`
-- Assert response `Cache-Control: no-cache`

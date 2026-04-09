@@ -12,6 +12,7 @@ using Ithil.Management.Audit;
 using Ithil.Management.Audit.Sinks;
 using Ithil.Management.Repositories;
 using Ithil.Privacy;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.ML.Tokenizers;
 using Polly;
@@ -34,8 +35,14 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<RequestTransformPipeline>();
         services.AddScoped<ResponseTransformPipeline>();
+        services.AddScoped<ToolCallGovernancePipeline>();
 
-        services.AddSingleton(BuildTokenValidationParameters(configuration));
+        var tokenValidationParameters = BuildTokenValidationParameters(configuration);
+        services.AddSingleton(tokenValidationParameters);
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options => options.TokenValidationParameters = tokenValidationParameters);
+        services.AddAuthorization();
         services.AddScoped<IJwtIdentityResolver, JwtIdentityResolver>();
         services.AddScoped<IApiKeyIdentityResolver, ApiKeyIdentityResolver>();
         services.AddSingleton<IAgentConfigRepository, AgentConfigRepository>();

@@ -4,6 +4,6 @@ namespace Ithil.Core.Interfaces;
 
 public interface IAuditLogger
 {
-    Task WriteAsync(AuditRecord record);
+    Task WriteAsync(AuditRecord record, CancellationToken cancellationToken = default);
 }
 

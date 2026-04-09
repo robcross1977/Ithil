@@ -2,7 +2,6 @@ using System.Text;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway;
-using Ithil.Gateway.Endpoints;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Mcp;
 using Ithil.Gateway.Transforms;
@@ -13,8 +12,6 @@ using Yarp.ReverseProxy.Transforms;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddIthilServices(builder.Configuration);
-builder.Services.AddScoped<McpDispatcher>();
-builder.Services.AddScoped<SseEmitter>();
 builder
     .Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
@@ -53,8 +50,18 @@ builder
         });
     });
 builder.Services.AddHealthChecks();
+builder.Services.AddMcpServer()
+    .WithHttpTransport(options =>
+        options.ConfigureSessionOptions = McpSessionConfiguration.ConfigureSessionAsync);
 
 var app = builder.Build();
+
+// Resolve eagerly so the tiktoken download happens at startup, not on the first live request.
+app.Services.GetRequiredService<ITokenCounter>();
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapHub<TraceHub>("/hubs/trace");
 
 // Seed a dev agent so identity resolution succeeds during local testing.
@@ -94,9 +101,8 @@ if (app.Environment.IsDevelopment())
     );
 }
 
-app.UseHttpsRedirection();
 app.MapHealthChecks("/health");
-app.MapMcpEndpoints();
+app.MapMcp("/mcp").RequireAuthorization();
 app.MapReverseProxy();
 
 app.Run();

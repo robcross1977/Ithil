@@ -136,6 +136,12 @@ dotnet run
 docker-compose up
 ```
 
+### Notes on startup
+
+**First-request delay** — the gateway downloads the tiktoken vocabulary file from `openaipublic.blob.core.windows.net` once on startup to initialise the token counter. This happens synchronously before the first request is served, so expect a few seconds of delay on cold boot depending on your network. Subsequent starts are not affected if the process is kept warm.
+
+**HTTPS redirection** — HTTPS redirection is enabled by default. In development, use the `https` launch profile (`dotnet run --launch-profile https`) to bind both HTTP and HTTPS ports. If you use the `http` profile only, the gateway will still redirect HTTP to the HTTPS port configured in `ASPNETCORE_HTTPS_PORTS` — make sure that port is actually listening or remove the environment variable to disable redirection locally. In production, configure the HTTPS port via `ASPNETCORE_HTTPS_PORTS` or the Kestrel `Endpoints` section in `appsettings.json`.
+
 ### Step 4 — Point your agent at the gateway
 
 ```

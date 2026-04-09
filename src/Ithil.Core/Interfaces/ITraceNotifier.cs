@@ -10,5 +10,5 @@ public interface ITraceNotifier
     /// <summary>
     /// Fires a trace event for a completed request.
     /// </summary>
-    Task NotifyAsync(AgentTraceEvent traceEvent);
+    Task NotifyAsync(AgentTraceEvent traceEvent, CancellationToken cancellationToken = default);
 }
