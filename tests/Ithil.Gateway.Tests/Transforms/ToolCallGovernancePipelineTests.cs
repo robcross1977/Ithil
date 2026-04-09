@@ -155,7 +155,10 @@ public class ToolCallGovernancePipelineTests
 
         await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
 
+        // "pending" must appear before "success" — it is emitted before the downstream invoke.
         traceStatuses.Should().Contain("pending");
+        traceStatuses.Should().Contain("success");
+        traceStatuses.IndexOf("pending").Should().BeLessThan(traceStatuses.IndexOf("success"));
     }
 
     [Fact]

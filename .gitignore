@@ -52,3 +52,6 @@ nvim
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Claude Code per-developer local settings (not shared across machines)
+.claude/settings.local.json
