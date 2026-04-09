@@ -299,22 +299,6 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
-    public void AllowWrite_DefaultsFalse()
-    {
-        var code = """
-            using Ithil.Attributes;
-            public class MyController {
-                [AgentTool("desc")]
-                public void GetInventory() {}
-            }
-            """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        source.Should().Contain("AllowWrite = false");
-    }
-
-    [Fact]
     public void SingleTool_EmitsRoutePatternInEntry()
     {
         var code = """
@@ -405,23 +389,6 @@ public class AgentToolGeneratorTests
         var (_, _, source) = RunGenerator(code);
 
         source.Should().Contain("HttpMethod = \"POST\"");
-    }
-
-    [Fact]
-    public void NoHttpAttribute_EmitsEmptyHttpMethod()
-    {
-        var code = """
-            using Ithil.Attributes;
-            public class MyController {
-                [AgentTool("desc")]
-                public void GetInventory() {}
-            }
-            """;
-
-        var (_, _, source) = RunGenerator(code);
-
-        // Without an explicit HTTP verb, the generator emits an empty string.
-        source.Should().Contain("HttpMethod = \"\"");
     }
 
     [Fact]

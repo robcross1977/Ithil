@@ -101,7 +101,10 @@ public class ToolCallGovernancePipeline(
     /// <summary>
     /// Records a cache-hit trace event and audit entry without consuming budget or calling downstream.
     /// </summary>
-    public async Task RecordCacheHitAsync(string agentId, string toolName)
+    public async Task RecordCacheHitAsync(
+        string agentId,
+        string toolName,
+        CancellationToken cancellationToken = default)
     {
         var traceId = traceIdFactory.Create();
         await traceNotifier.NotifyAsync(new AgentTraceEvent
@@ -110,13 +113,13 @@ public class ToolCallGovernancePipeline(
             Status = "cache-hit", TokensUsed = 0,
             Timestamp = DateTime.UtcNow.ToString("O"),
             LatencyMs = 0,
-        });
+        }, cancellationToken);
         await auditLogger.WriteAsync(new AuditRecord
         {
             Timestamp = DateTime.UtcNow.ToString("O"), TraceId = traceId,
             AgentId = agentId, ToolName = toolName, Outcome = "cache-hit",
             TokensUsed = 0, CacheHit = true,
-        });
+        }, cancellationToken);
     }
 
     private async Task<string> RunGovernedCallAsync(

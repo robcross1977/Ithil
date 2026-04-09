@@ -45,8 +45,12 @@ public static class McpSessionConfiguration
             },
             None: () => allTools);
 
+        // Exclude tools with no HTTP method — they were registered without an [Http*] attribute
+        // and would always throw at invocation. The source generator emits ITHIL001 for these.
+        var invocableTools = allowedTools.Filter(t => !string.IsNullOrEmpty(t.HttpMethod));
+
         options.ToolCollection = new McpServerPrimitiveCollection<McpServerTool>();
-        foreach (var tool in allowedTools)
+        foreach (var tool in invocableTools)
         {
             var fn = new ToolProxyAIFunction(tool, registryOptions.DownstreamBaseUrl, httpClientFactory, agentId, governance, semanticCache);
             options.ToolCollection.Add(McpServerTool.Create(fn));
