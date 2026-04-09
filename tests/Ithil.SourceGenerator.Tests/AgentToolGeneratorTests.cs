@@ -112,6 +112,23 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
+    public void NoAgentToolMethods_EmitsEmptySchemaRegistry()
+    {
+        var code = """
+            public class MyController
+            {
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().NotBeNullOrWhiteSpace();
+        source.Should().Contain("SchemaRegistry");
+        source.Should().NotContain("new ToolEntry");
+    }
+
+    [Fact]
     public void SingleMethod_EmitsCorrectName()
     {
         var code = """

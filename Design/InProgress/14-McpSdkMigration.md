@@ -36,7 +36,7 @@ it lives in ASP.NET Core middleware and DI services that wrap the SDK, not insid
 
 - `Ithil.Budget` — budget middleware is untouched; fires on the raw HTTP request before the SDK processes the body, so `429` rejections still work correctly
 - `Ithil.Privacy` — privacy filter pipeline is untouched; runs inside each tool proxy after the downstream response is received, before returning to the SDK
-- `Ithil.Gateway` circuit breaker, SignalR tracing, JWT auth — all untouched
+- `Ithil.Gateway` circuit breaker and SignalR tracing — untouched; JWT auth semantics are unchanged but the wiring changes: `/mcp` is now protected via ASP.NET Core `JwtBearer` middleware with `.RequireAuthorization()`
 - `Ithil.Attributes` — `[AgentTool]` attribute is untouched
 - `Ithil.SourceGenerator` — emits `SchemaRegistry.g.cs` (unchanged); proxy class approach was abandoned (see below)
 - YARP configuration — runs as catch-all middleware after `MapMcp()`, no conflict

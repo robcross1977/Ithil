@@ -21,7 +21,7 @@ public static class McpSessionConfiguration
         var agentId = context.User.FindFirst("agent_id")?.Value;
         if (string.IsNullOrEmpty(agentId))
         {
-            context.Response.StatusCode = 401;
+            context.Response.StatusCode = 403;
             await context.Response.WriteAsync("agent_id claim is required.");
             return;
         }
