@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Ithil.Management.Repositories;
 
 /// <summary>
-/// In-memory agent configuration store backed bya  concurrent dictionary.
+/// In-memory agent configuration store backed by a concurrent dictionary.
 /// All data is lost when the process exits. Use for development or testing only.
 /// </summary>
 public class InMemoryAgentConfigRepository : IAgentConfigRepository

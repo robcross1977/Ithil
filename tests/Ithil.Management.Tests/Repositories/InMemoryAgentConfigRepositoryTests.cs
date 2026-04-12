@@ -35,6 +35,86 @@ public class InMemoryAgentConfigRepositoryTests
         result.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task InMemoryAgentConfigRepository_Upsert_ThenGet_RoundTrips_AllFields()
+    {
+        var repo = CreateRepo();
+        var config = BuildConfig("agent-1");
+
+        await repo.UpsertAsync(config);
+        var result = await repo.GetAsync("agent-1");
+
+        result.IsSome.Should().BeTrue();
+        var retrieved = (AgentConfig)result;
+        retrieved.AgentId.Should().Be(config.AgentId);
+        retrieved.Label.Should().Be(config.Label);
+        retrieved.DailyTokenBudget.Should().Be(config.DailyTokenBudget);
+        retrieved.AllowedTools.Should().BeEquivalentTo(config.AllowedTools);
+        retrieved.Scopes.Should().BeEquivalentTo(config.Scopes);
+        retrieved.IsActive.Should().Be(config.IsActive);
+    }
+
+    [Fact]
+    public async Task InMemoryAgentConfigRepository_Upsert_Overwrites_ExistingConfig()
+    {
+        var repo = CreateRepo();
+        await repo.UpsertAsync(BuildConfig("agent-1", label: "Original"));
+        await repo.UpsertAsync(BuildConfig("agent-1", label: "Updated"));
+
+        var result = await repo.GetAsync("agent-1");
+
+        ((AgentConfig)result).Label.Should().Be("Updated");
+    }
+
+    [Fact]
+    public async Task InMemoryAgentConfigRepository_GetAll_ReturnsAllUpsertedAgents()
+    {
+        var repo = CreateRepo();
+        await repo.UpsertAsync(BuildConfig("agent-1"));
+        await repo.UpsertAsync(BuildConfig("agent-2"));
+        await repo.UpsertAsync(BuildConfig("agent-3"));
+
+        var result = await repo.GetAllAsync();
+
+        result.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task InMemoryAgentConfigRepository_Delete_ReturnsTrue_WhenAgentExists()
+    {
+        var repo = CreateRepo();
+        await repo.UpsertAsync(BuildConfig("agent-1"));
+
+        var result = await repo.DeleteAsync("agent-1");
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InMemoryAgentConfigRepository_Delete_RemovesAgent_FromGetAll()
+    {
+        var repo = CreateRepo();
+        await repo.UpsertAsync(BuildConfig("agent-1"));
+        await repo.UpsertAsync(BuildConfig("agent-2"));
+
+        await repo.DeleteAsync("agent-1");
+        var result = await repo.GetAllAsync();
+
+        result.Should().HaveCount(1);
+        result.Single().AgentId.Should().Be("agent-2");
+    }
+
+    private static AgentConfig BuildConfig(string agentId, string label = "Test Agent") =>
+        new()
+        {
+            AgentId = agentId,
+            Label = label,
+            DailyTokenBudget = 1000,
+            AllowedTools = ["tool-a", "tool-b"],
+            Scopes = ["read"],
+            IsActive = true
+        };
+
     // Captures log calls so tests can assert on level and message without NSubstitute's
     // known limitations around ILogger's generic Log<TState> method.
     private sealed class CapturingLogger<T> : ILogger<T>

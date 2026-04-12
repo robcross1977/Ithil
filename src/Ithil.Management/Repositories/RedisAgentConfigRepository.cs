@@ -39,7 +39,10 @@ public class RedisAgentConfigRepository : IAgentConfigRepository
     public async Task<Seq<AgentConfig>> GetAllAsync()
     {
         var entries = await _db.HashGetAllAsync(HashKey);
-        return entries.Select(e => Deserialize(e.Value!)).ToSeq();
+        return entries
+            .Where(e => e.Value.HasValue)
+            .Select(e => Deserialize(e.Value!))
+            .ToSeq();
     }
 
     /// <summary>
@@ -68,15 +71,17 @@ public class RedisAgentConfigRepository : IAgentConfigRepository
 
     private static AgentConfig Deserialize(string json)
     {
-        var dto = JsonSerializer.Deserialize<AgentConfigDto>(json)!;
+        var dto = JsonSerializer.Deserialize<AgentConfigDto>(json)
+            ?? throw new InvalidOperationException(
+                $"Failed to deserialize AgentConfig from Redis — stored value may be corrupt: {json}");
         return new AgentConfig
         {
             AgentId = dto.AgentId,
             ApiKeyHash = dto.ApiKeyHash,
             Label = dto.Label,
             DailyTokenBudget = dto.DailyTokenBudget,
-            AllowedTools = dto.AllowedTools.ToSeq(),
-            Scopes = dto.Scopes.ToSeq(),
+            AllowedTools = (dto.AllowedTools ?? []).ToSeq(),
+            Scopes = (dto.Scopes ?? []).ToSeq(),
             IsActive = dto.IsActive
         };
     }
