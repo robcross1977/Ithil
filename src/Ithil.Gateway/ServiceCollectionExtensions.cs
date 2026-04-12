@@ -97,12 +97,12 @@ public static class ServiceCollectionExtensions
         configuration.GetSection("Ithil:CircuitBreaker").Bind(circuitBreakerOptions);
         services.AddSingleton(circuitBreakerOptions);
 
-        var serviceToken = GenerateServiceToken(configuration);
         services
             .AddHttpClient("downstream")
             .ConfigureHttpClient(client =>
                 client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceToken))
+                    new System.Net.Http.Headers.AuthenticationHeaderValue(
+                        "Bearer", GenerateServiceToken(configuration)))
             .AddResilienceHandler(
                 "circuit-breaker",
                 (builder, context) =>
@@ -162,13 +162,13 @@ public static class ServiceCollectionExtensions
     private static string GenerateServiceToken(IConfiguration configuration)
     {
         var jwt = configuration.GetSection("Ithil:Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+            jwt["SigningKey"] ?? throw new InvalidOperationException("Ithil:Jwt:SigningKey is required")));
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Claims = new Dictionary<string, object> { { "agent_id", "gateway-service" } },
-            Expires = DateTime.UtcNow.AddHours(24),
-            Issuer = jwt["Issuer"],
-            Audience = jwt["Audience"],
+            Issuer = jwt["Issuer"] ?? throw new InvalidOperationException("Ithil:Jwt:Issuer is required"),
+            Audience = jwt["Audience"] ?? throw new InvalidOperationException("Ithil:Jwt:Audience is required"),
             SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
         });
     }

@@ -48,6 +48,7 @@ public class InMemoryAgentConfigRepositoryTests
         var retrieved = (AgentConfig)result;
         retrieved.AgentId.Should().Be(config.AgentId);
         retrieved.Label.Should().Be(config.Label);
+        retrieved.ApiKeyHash.Should().Be(config.ApiKeyHash);
         retrieved.DailyTokenBudget.Should().Be(config.DailyTokenBudget);
         retrieved.AllowedTools.Should().BeEquivalentTo(config.AllowedTools);
         retrieved.Scopes.Should().BeEquivalentTo(config.Scopes);
@@ -109,6 +110,7 @@ public class InMemoryAgentConfigRepositoryTests
         {
             AgentId = agentId,
             Label = label,
+            ApiKeyHash = "abc123hash",
             DailyTokenBudget = 1000,
             AllowedTools = ["tool-a", "tool-b"],
             Scopes = ["read"],
