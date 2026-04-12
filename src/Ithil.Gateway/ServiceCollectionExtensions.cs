@@ -45,7 +45,10 @@ public static class ServiceCollectionExtensions
         services.AddAuthorization();
         services.AddScoped<IJwtIdentityResolver, JwtIdentityResolver>();
         services.AddScoped<IApiKeyIdentityResolver, ApiKeyIdentityResolver>();
-        services.AddSingleton<IAgentConfigRepository, AgentConfigRepository>();
+        if (configuration.GetValue<bool>("Ithil:AgentStore:UseInMemory"))
+            services.AddSingleton<IAgentConfigRepository, InMemoryAgentConfigRepository>();
+        else
+            services.AddSingleton<IAgentConfigRepository, RedisAgentConfigRepository>();
         services.AddScoped<IApiKeyRepository, NotImplementedApiKeyRepository>();
         services.AddScoped<IAgentIdentityService, AgentIdentityService>();
 
