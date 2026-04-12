@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.Channels;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Ithil.Budget;
 using Ithil.Cache;
 using Ithil.Core.Interfaces;
@@ -96,8 +97,12 @@ public static class ServiceCollectionExtensions
         configuration.GetSection("Ithil:CircuitBreaker").Bind(circuitBreakerOptions);
         services.AddSingleton(circuitBreakerOptions);
 
+        var serviceToken = GenerateServiceToken(configuration);
         services
             .AddHttpClient("downstream")
+            .ConfigureHttpClient(client =>
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceToken))
             .AddResilienceHandler(
                 "circuit-breaker",
                 (builder, context) =>
@@ -152,6 +157,20 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IAuditSink, StdoutAuditSink>();
 
         return services;
+    }
+
+    private static string GenerateServiceToken(IConfiguration configuration)
+    {
+        var jwt = configuration.GetSection("Ithil:Jwt");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
+        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Claims = new Dictionary<string, object> { { "agent_id", "gateway-service" } },
+            Expires = DateTime.UtcNow.AddHours(24),
+            Issuer = jwt["Issuer"],
+            Audience = jwt["Audience"],
+            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+        });
     }
 
     private static TokenValidationParameters BuildTokenValidationParameters(
