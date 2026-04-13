@@ -62,6 +62,9 @@ public class AgentToolGeneratorTests
 
             [System.AttributeUsage(System.AttributeTargets.Parameter)]
             public sealed class FromQueryAttribute : System.Attribute {}
+
+            [System.AttributeUsage(System.AttributeTargets.Parameter)]
+            public sealed class FromRouteAttribute : System.Attribute {}
         }
     """;
 
@@ -441,5 +444,186 @@ public class AgentToolGeneratorTests
         var (_, _, source) = RunGenerator(code);
 
         source.Should().Contain("AllowWrite = true");
+    }
+
+    [Fact]
+    public void RouteConstraint_ClassifiesParamAsRoute()
+    {
+        // {id:int} — the constraint suffix must not prevent route-param detection.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/posts")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("{id:int}")]
+                public void GetPost(int id) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"id\", \"route\" }");
+    }
+
+    [Fact]
+    public void FromBodyComplexType_ExpandsToIndividualCamelCaseProperties()
+    {
+        // [FromBody] with a complex type should expand into one entry per public property,
+        // camelCased, all with source "body" — not a single opaque "request" entry.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/posts")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost]
+                public void CreatePost([FromBody] CreatePostRequest request) {}
+            }
+            public class CreatePostRequest {
+                public string Title { get; set; } = "";
+                public int UserId { get; set; }
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        // Individual properties appear as body entries — not the parameter name "request".
+        source.Should().Contain("{ \"title\", \"body\" }");
+        source.Should().Contain("{ \"userId\", \"body\" }");
+        source.Should().NotContain("{ \"request\", \"body\" }");
+    }
+
+    [Fact]
+    public void FromBodyComplexType_EmitsIntegerTypeForIntProperty()
+    {
+        // ParameterTypes for an int property must emit "integer", not "string".
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost]
+                public void CreatePost([FromBody] CreatePostRequest request) {}
+            }
+            public class CreatePostRequest {
+                public int UserId { get; set; }
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"userId\", \"integer\" }");
+    }
+
+    [Fact]
+    public void FromRouteAttribute_ClassifiesParamAsRoute()
+    {
+        // Explicit [FromRoute] attribute on a parameter that is NOT in the route template
+        // must still be classified as route source.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/items")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet]
+                public void GetItem([FromRoute] int id) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"id\", \"route\" }");
+    }
+
+    [Fact]
+    public void CancellationToken_IsExcludedFromParameterSources()
+    {
+        // CancellationToken is injected by the framework and must never appear in the schema.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/items")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("{id}")]
+                public void GetItem(int id, System.Threading.CancellationToken ct) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"id\", \"route\" }");
+        source.Should().NotContain("\"ct\"");
+    }
+
+    [Fact]
+    public void FromBodyEmptyType_FallsBackToObjectEntry()
+    {
+        // A [FromBody] type with no public properties must emit a single "object"-typed entry
+        // for the parameter name rather than being silently dropped.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost]
+                public void CreateThing([FromBody] EmptyBody payload) {}
+            }
+            public class EmptyBody {}
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"payload\", \"body\" }");
+        source.Should().Contain("{ \"payload\", \"object\" }");
+    }
+
+    [Fact]
+    public void DuplicateName_RouteParamBeatsExpandedBodyProperty()
+    {
+        // When a route param name collides with a body-type property name, the route
+        // classification wins (route params are inserted into entries before body expansion).
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/users")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost("{userId}")]
+                public void CreateForUser(int userId, [FromBody] UserPayload payload) {}
+            }
+            public class UserPayload {
+                public int UserId { get; set; }
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        // userId must be classified as "route", not "body" (route param appears first).
+        source.Should().Contain("{ \"userId\", \"route\" }");
+        source.Should().NotContain("{ \"userId\", \"body\" }");
+    }
+
+    [Fact]
+    public void ParameterTypes_EmittedInGeneratedCode()
+    {
+        // ParameterTypes dictionary must be present in the generated ToolEntry initializer.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("{id}")]
+                public void GetItem(int id, string name) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("ParameterTypes = new Dictionary<string, string>");
+        source.Should().Contain("{ \"id\", \"integer\" }");
+        source.Should().Contain("{ \"name\", \"string\" }");
     }
 }

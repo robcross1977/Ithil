@@ -57,4 +57,40 @@ public class ToolCallRouterTests
         body.Should().Contain("ABC");
         body.Should().Contain("10");
     }
+
+    [Fact]
+    public void ConstrainedRouteParam_IsSubstitutedCorrectly()
+    {
+        // {id:int} — the constraint suffix must be stripped when substituting the value.
+        var tool = MakeTool("GET", "api/posts/{id:int}", new() { { "id", "route" } });
+        var request = ToolCallRouter.BuildRequest(tool, "http://localhost:5200", Args("""{"id":"42"}"""));
+
+        request.RequestUri!.ToString().Should().Be("http://localhost:5200/api/posts/42");
+    }
+
+    [Fact]
+    public async Task MultipleBodyParams_WrappedIntoSingleJsonObject()
+    {
+        // Expanded body properties (title, userId) must all appear inside one JSON object,
+        // not as separate request bodies sent sequentially.
+        var tool = MakeTool("POST", "api/posts", new() { { "title", "body" }, { "userId", "body" } });
+        var request = ToolCallRouter.BuildRequest(tool, "http://localhost:5200",
+            Args("""{"title":"Hello","userId":7}"""));
+
+        request.Content.Should().NotBeNull();
+        var body = await request.Content!.ReadAsStringAsync();
+        body.Should().Contain("title");
+        body.Should().Contain("Hello");
+        body.Should().Contain("userId");
+        body.Should().Contain("7");
+    }
+
+    [Fact]
+    public void RouteParamNames_ConstrainedToken_ReturnsParamName()
+    {
+        // RouteParamNames must extract just "id" from "{id:int}", not "id:int".
+        var names = ToolCallRouter.RouteParamNames("api/posts/{id:int}").ToList();
+
+        names.Should().ContainSingle().Which.Should().Be("id");
+    }
 }
