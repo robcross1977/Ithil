@@ -288,7 +288,12 @@ public class AgentToolGenerator : IIncrementalGenerator
         var source = ResolveSource(param, routeParams);
 
         if (source == "body" && IsComplexType(param.Type))
-            return ExpandBodyType(param.Type);
+        {
+            var expanded = ExpandBodyType(param.Type).ToList();
+            // Fall back to a single opaque 'object' entry if the type has no public properties
+            // (e.g., empty marker DTOs), so the parameter isn't silently dropped from the schema.
+            if (expanded.Count > 0) return expanded;
+        }
 
         return new[] { (param.Name, source, TypeMapper.ToJsonType(param.Type).JsonType) };
     }

@@ -84,6 +84,6 @@ public static partial class ToolCallRouter
         return $"{baseUrl.TrimEnd('/')}/{fullPath.TrimStart('/')}";
     }
 
-    [GeneratedRegex(@"\{(\w+)\}")]
+    [GeneratedRegex(@"\{(\w+)(?::[^}]*)?\}")]
     private static partial Regex RouteRegex();
 }
