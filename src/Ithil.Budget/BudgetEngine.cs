@@ -8,7 +8,7 @@ namespace Ithil.Budget;
 /// <summary>
 /// Redis-backed implementation of IBudgetEngine.
 /// Tracks per-agent daily token usage and enforces configurable limits.
-/// Fails open - if Redis is unavailable, all budget checks return true. 
+/// Fails open - if Redis is unavailable, all budget checks return true.
 /// </summary>
 public class BudgetEngine(
     IDatabase redis,
@@ -33,7 +33,7 @@ public class BudgetEngine(
     }
 
     /// <summary>
-    /// Increments the agent's token usage and sets a 48-hour expiry on the key
+    /// Increments the agent's token usage and sets a 48-hour expiry on the key.
     /// </summary>
     public async Task RecordUsageAsync(string agentId, int tokens, CancellationToken cancellationToken = default)
     {
@@ -50,6 +50,16 @@ public class BudgetEngine(
     {
         var usage = await TryGetUsageAsync(agentId);
         return usage.IfNone(0);
+    }
+
+    /// <summary>
+    /// Deletes today's usage key, effectively resetting the agent's token count to zero.
+    /// </summary>
+    public async Task ResetUsageAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var key = BudgetKeyFactory.ForToday(agentId);
+        await _redis.KeyDeleteAsync(key);
     }
 
     // Reads usage from Redis and wraps it in Option<int>.

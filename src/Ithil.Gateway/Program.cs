@@ -3,6 +3,7 @@ using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway;
 using Ithil.Gateway.Hubs;
+using Ithil.Gateway.Management;
 using Ithil.Gateway.Mcp;
 using Ithil.Gateway.Transforms;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -12,6 +13,7 @@ using Yarp.ReverseProxy.Transforms;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddIthilServices(builder.Configuration);
+builder.Services.AddIthilManagement();
 builder
     .Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
@@ -102,6 +104,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthChecks("/health");
+app.MapManagementEndpoints();
 app.MapMcp("/mcp").RequireAuthorization();
 app.MapReverseProxy();
 

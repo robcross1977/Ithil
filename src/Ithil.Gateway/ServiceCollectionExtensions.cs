@@ -7,6 +7,8 @@ using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Identity;
+using Ithil.Gateway.Management;
+using Ithil.Management.Services;
 using Ithil.Gateway.Stubs;
 using Ithil.Gateway.Transforms;
 using Ithil.Management.Audit;
@@ -44,6 +46,8 @@ public static class ServiceCollectionExtensions
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options => options.TokenValidationParameters = tokenValidationParameters);
         services.AddAuthorization();
+        services.AddAuthorizationBuilder()
+            .AddManagementPolicy();
         services.AddScoped<IJwtIdentityResolver, JwtIdentityResolver>();
         services.AddScoped<IApiKeyIdentityResolver, ApiKeyIdentityResolver>();
         if (configuration.GetValue<bool>("Ithil:AgentStore:UseInMemory"))
@@ -159,6 +163,16 @@ public static class ServiceCollectionExtensions
         if (!auditOptions.DisableStdoutSink)
             services.AddSingleton<IAuditSink, StdoutAuditSink>();
 
+        return services;
+    }
+
+    /// <summary>
+    /// Registers management services for agent lifecycle and budget operations.
+    /// </summary>
+    public static IServiceCollection AddIthilManagement(this IServiceCollection services)
+    {
+        services.AddScoped<IAgentManagementService, AgentManagementService>();
+        services.AddScoped<IBudgetQueryService, BudgetQueryService>();
         return services;
     }
 
