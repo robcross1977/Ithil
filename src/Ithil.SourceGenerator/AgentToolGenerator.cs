@@ -272,9 +272,16 @@ public class AgentToolGenerator : IIncrementalGenerator
             .SelectMany(p => ToParamEntries(p, routeParams))
             .ToList();
 
+        // Group by name (case-insensitive) so collisions between route/query params and expanded
+        // body properties don't throw at build time. First occurrence wins — route and query
+        // params appear earlier in entries than expanded body properties, so they take priority.
+        var grouped = entries
+            .GroupBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         return (
-            entries.ToDictionary(e => e.Name, e => e.Source),
-            entries.ToDictionary(e => e.Name, e => e.JsonType));
+            grouped.ToDictionary(g => g.Key, g => g.First().Source, StringComparer.OrdinalIgnoreCase),
+            grouped.ToDictionary(g => g.Key, g => g.First().JsonType, StringComparer.OrdinalIgnoreCase));
     }
 
     // Maps a single method parameter to one or more schema entries.
@@ -290,9 +297,10 @@ public class AgentToolGenerator : IIncrementalGenerator
         if (source == "body" && IsComplexType(param.Type))
         {
             var expanded = ExpandBodyType(param.Type).ToList();
-            // Fall back to a single opaque 'object' entry if the type has no public properties
-            // (e.g., empty marker DTOs), so the parameter isn't silently dropped from the schema.
             if (expanded.Count > 0) return expanded;
+            // Empty type (no public properties) — emit as 'object' so the param appears in the
+            // schema and the router still sends a body, rather than silently dropping it.
+            return new[] { (param.Name, "body", "object") };
         }
 
         return new[] { (param.Name, source, TypeMapper.ToJsonType(param.Type).JsonType) };
