@@ -11,7 +11,8 @@ public class ToolMetadata(
     ParameterMetadata[] parameters,
     string httpMethod,
     string routePattern,
-    Dictionary<string, string> parameterSources)
+    Dictionary<string, string> parameterSources,
+    Dictionary<string, string> parameterTypes)
 {
     public string MethodName { get; } = methodName;
     public string Description { get; } = description;
@@ -23,4 +24,5 @@ public class ToolMetadata(
     public string HttpMethod { get; } = httpMethod;
     public string RoutePattern { get; } = routePattern;
     public Dictionary<string, string> ParameterSources { get; } = parameterSources;
+    public Dictionary<string, string> ParameterTypes { get; } = parameterTypes;
 }

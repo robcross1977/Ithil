@@ -46,5 +46,5 @@ app.MapIthilSchema(
     SchemaRegistry.Tools.Select(t => new ToolSchemaResponse(
         t.Name, t.Description, t.AllowWrite, t.MaxResponseTokens,
         t.Category, t.HttpMethod, t.RoutePattern, t.ParameterSources,
-        ToolSchemaMapper.BuildInputSchema(t.ParameterSources))));
+        ToolSchemaMapper.BuildInputSchema(t.ParameterSources, t.ParameterTypes))));
 app.Run();

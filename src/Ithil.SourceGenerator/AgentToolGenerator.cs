@@ -117,7 +117,7 @@ public class AgentToolGenerator : IIncrementalGenerator
                 ? classPrefix
                 : $"{classPrefix.TrimEnd('/')}/{methodTemplate.TrimStart('/')}";
 
-        var parameterSources = DetermineParameterSources(method, routePattern);
+        var (parameterSources, parameterTypes) = DetermineParameterSources(method, routePattern);
 
         return new ToolMetadata(
             method.Name,
@@ -129,7 +129,8 @@ public class AgentToolGenerator : IIncrementalGenerator
             parameters,
             httpMethod,
             routePattern,
-            parameterSources);
+            parameterSources,
+            parameterTypes);
     }
 
     // Writes the SchemaRegistry.g.cs file into the compilation.
@@ -171,6 +172,11 @@ public class AgentToolGenerator : IIncrementalGenerator
             foreach (var kvp in tool.ParameterSources)
                 sb.AppendLine($"                {{ \"{kvp.Key}\", \"{kvp.Value}\" }},");
             sb.AppendLine("            },");
+            sb.AppendLine("            ParameterTypes = new Dictionary<string, string>");
+            sb.AppendLine("            {");
+            foreach (var kvp in tool.ParameterTypes)
+                sb.AppendLine($"                {{ \"{kvp.Key}\", \"{kvp.Value}\" }},");
+            sb.AppendLine("            },");
             sb.AppendLine("        },");
         }
 
@@ -187,6 +193,7 @@ public class AgentToolGenerator : IIncrementalGenerator
         sb.AppendLine("    public string HttpMethod { get; set; } = string.Empty;");
         sb.AppendLine("    public string RoutePattern { get; set; } = string.Empty;");
         sb.AppendLine("    public Dictionary<string, string> ParameterSources { get; set; } = new();");
+        sb.AppendLine("    public Dictionary<string, string> ParameterTypes { get; set; } = new();");
         sb.AppendLine("}");
 
         // AddSource registers the file with Roslyn. The filename must be unique per generator.
@@ -255,53 +262,107 @@ public class AgentToolGenerator : IIncrementalGenerator
             : string.Empty;
     }
 
-    // Infers how each parameter is bound based on route template, attributes, and type complexity.
-    // Priority: [FromBody] > [FromQuery] > appears in route template > single type -> query > complex -> body
-    private static Dictionary<string, string> DetermineParameterSources(
+    // Combines route, query, and body sources into a flat entry list, then splits into two dicts.
+    // Complex [FromBody] params are expanded into individual named properties.
+    private static (Dictionary<string, string> Sources, Dictionary<string, string> Types) DetermineParameterSources(
         IMethodSymbol method, string routePattern)
     {
-        // Extract {paramName} tokens from the combined route pattern
-        var routeParamMatches = System.Text.RegularExpressions.Regex
-            .Matches(routePattern, @"\{(\w+)\}");
-        var routeParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (System.Text.RegularExpressions.Match m in routeParamMatches)
-            routeParams.Add(m.Groups[1].Value);
+        var routeParams = ExtractRouteParams(routePattern);
+        var entries = method.Parameters
+            .SelectMany(p => ToParamEntries(p, routeParams))
+            .ToList();
 
-        var sources = new Dictionary<string, string>();
+        // Group by name (case-insensitive) and resolve collisions by explicit source priority
+        // (route > query > body) so a body-type property never shadows a route or query param
+        // regardless of method-parameter order.
+        var grouped = entries
+            .GroupBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach ( var param in method.Parameters)
+        return (
+            grouped.ToDictionary(g => g.Key, g => HighestPriorityEntry(g).Source, StringComparer.OrdinalIgnoreCase),
+            grouped.ToDictionary(g => g.Key, g => HighestPriorityEntry(g).JsonType, StringComparer.OrdinalIgnoreCase));
+    }
+
+    // Maps a single method parameter to one or more schema entries.
+    // Skips infrastructure params; expands complex [FromBody] types into per-property entries.
+    private static IEnumerable<(string Name, string Source, string JsonType)> ToParamEntries(
+        IParameterSymbol param, HashSet<string> routeParams)
+    {
+        if (IsInfrastructureParam(param))
+            return System.Array.Empty<(string, string, string)>();
+
+        var source = ResolveSource(param, routeParams);
+
+        if (source == "body" && IsComplexType(param.Type))
         {
-            // [FromBody] wins regardless of anything else
-            if (param.GetAttributes().Any(a =>
-                a.AttributeClass?.ToDisplayString() == "Microsoft.AspNetCore.Mvc.FromBodyAttribute"))
-            {
-                sources[param.Name] = "body";
-                continue;
-            }
-
-            // [FromQuery] explicitly forces query string
-            if (param.GetAttributes().Any(a =>
-                a.AttributeClass?.ToDisplayString() == "Microsoft.AspNetCore.Mvc.FromQueryAttribute"))
-            {
-                sources[param.Name] = "query";
-                continue;
-            }
-
-            // Name matches a {token} in the route template -> route param
-            if (routeParams.Contains(param.Name))
-            {
-                sources[param.Name] = "route";
-                continue;
-            }
-
-            // Simple types (string, int, bool, etc.) default to query - same as ASP.NET Core
-            var isSimple = param.Type.SpecialType != SpecialType.None
-                || param.Type.TypeKind == TypeKind.Enum;
-
-            sources[param.Name] = isSimple ? "query" : "body";
+            var expanded = ExpandBodyType(param.Type).ToList();
+            if (expanded.Count > 0) return expanded;
+            // Empty type (no public properties) — emit as 'object' so the param appears in the
+            // schema and the router still sends a body, rather than silently dropping it.
+            return new[] { (param.Name, "body", "object") };
         }
 
-        return sources;
+        return new[] { (param.Name, source, TypeMapper.ToJsonType(param.Type).JsonType) };
+    }
+
+    // Expands a record/class body type into camelCase-named entries, one per public property.
+    private static IEnumerable<(string Name, string Source, string JsonType)> ExpandBodyType(ITypeSymbol type) =>
+        type.GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(p => p.DeclaredAccessibility == Accessibility.Public && !p.IsStatic)
+            .Select(p => (ToCamelCase(p.Name), "body", TypeMapper.ToJsonType(p.Type).JsonType));
+
+    // Determines where a parameter comes from: body, query, or route.
+    private static string ResolveSource(IParameterSymbol param, HashSet<string> routeParams)
+    {
+        if (HasAttribute(param, "Microsoft.AspNetCore.Mvc.FromBodyAttribute"))  return "body";
+        if (HasAttribute(param, "Microsoft.AspNetCore.Mvc.FromQueryAttribute")) return "query";
+        if (HasAttribute(param, "Microsoft.AspNetCore.Mvc.FromRouteAttribute")) return "route";
+        if (routeParams.Contains(param.Name))                                   return "route";
+        return IsComplexType(param.Type) ? "body" : "query";
+    }
+
+    private static HashSet<string> ExtractRouteParams(string routePattern) =>
+        new HashSet<string>(
+            System.Text.RegularExpressions.Regex
+                .Matches(routePattern, @"\{(\w+)(?::[^}]*)?\}")
+                .Cast<System.Text.RegularExpressions.Match>()
+                .Select(m => m.Groups[1].Value),
+            StringComparer.OrdinalIgnoreCase);
+
+    // Params the framework injects automatically — should never appear in the tool schema.
+    private static bool IsInfrastructureParam(IParameterSymbol param)
+    {
+        var fullName = param.Type.ToDisplayString();
+        return fullName is
+            "System.Threading.CancellationToken" or
+            "Microsoft.AspNetCore.Http.HttpContext" or
+            "Microsoft.AspNetCore.Http.HttpRequest" or
+            "Microsoft.AspNetCore.Http.HttpResponse";
+    }
+
+    private static bool IsComplexType(ITypeSymbol type) =>
+        type.SpecialType == SpecialType.None && type.TypeKind != TypeKind.Enum;
+
+    private static bool HasAttribute(IParameterSymbol param, string fullName) =>
+        param.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == fullName);
+
+    private static string ToCamelCase(string name) =>
+        string.IsNullOrEmpty(name) ? name : char.ToLowerInvariant(name[0]) + name.Substring(1);
+
+    // route > query > body — ensures route/query params win over same-named expanded body properties
+    // regardless of the order they appear in the method signature.
+    private static (string Name, string Source, string JsonType) HighestPriorityEntry(
+        IEnumerable<(string Name, string Source, string JsonType)> entries)
+    {
+        static int Priority(string source) => source switch
+        {
+            "route" => 3,
+            "query" => 2,
+            _       => 1
+        };
+        return entries.OrderByDescending(e => Priority(e.Source)).First();
     }
 
     // Escapes quotes inside attribute description strings so they don't break the generated C# source.

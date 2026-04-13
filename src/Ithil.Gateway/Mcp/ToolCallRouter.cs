@@ -28,11 +28,14 @@ public static partial class ToolCallRouter
         var url = BuildFullUrl(path, tool.ParameterSources, arguments, baseUrl);
         var request = new HttpRequestMessage(new HttpMethod(tool.HttpMethod), url);
 
-        var bodyParam = tool.ParameterSources.FirstOrDefault(p => p.Value == "body");
-        if (bodyParam.Key != null && arguments.TryGetProperty(bodyParam.Key, out var bodyValue))
+        var bodyProps = tool.ParameterSources
+            .Where(p => p.Value == "body" && arguments.TryGetProperty(p.Key, out _))
+            .ToDictionary(p => p.Key, p => arguments.GetProperty(p.Key));
+
+        if (bodyProps.Count > 0)
         {
             request.Content = new StringContent(
-                bodyValue.GetRawText(),
+                JsonSerializer.Serialize(bodyProps),
                 Encoding.UTF8,
                 "application/json");
         }
@@ -47,7 +50,7 @@ public static partial class ToolCallRouter
         RouteRegex().Matches(routePattern)
              .Select(m => m.Groups[1].Value);
 
-    // Substitutes {param} tokens in the route pattern with URL-encoded argument values.
+    // Substitutes {param} or {param:constraint} tokens in the route pattern with URL-encoded argument values.
     private static string SubstituteRouteParams(
         string routePattern,
         Dictionary<string, string> parameterSources,
@@ -57,7 +60,10 @@ public static partial class ToolCallRouter
         foreach (var kvp in parameterSources.Where(p => p.Value == "route"))
         {
             if (arguments.TryGetProperty(kvp.Key, out var val))
-                path = path.Replace($"{{{kvp.Key}}}", Uri.EscapeDataString(val.ToString()));
+                path = Regex.Replace(
+                    path,
+                    $@"\{{{kvp.Key}(?::[^}}]*)?\}}",
+                    Uri.EscapeDataString(val.ToString()));
         }
         return path;
     }
@@ -78,6 +84,6 @@ public static partial class ToolCallRouter
         return $"{baseUrl.TrimEnd('/')}/{fullPath.TrimStart('/')}";
     }
 
-    [GeneratedRegex(@"\{(\w+)\}")]
+    [GeneratedRegex(@"\{(\w+)(?::[^}]*)?\}")]
     private static partial Regex RouteRegex();
 }
