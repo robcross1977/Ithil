@@ -4,15 +4,6 @@ using LanguageExt;
 
 namespace Ithil.Gateway.Stubs;
 
-internal class NotImplementedApiKeyRepository : IApiKeyRepository
-{
-    public Task<Option<string>> FindByHashedKeyAsync(string hashedKey) =>
-        throw new NotImplementedException("ApiKeyRepository not yet implemented");
-
-    public Task<string> CreateAsync(string agentId) =>
-        throw new NotImplementedException("ApiKeyRepository not yet implemented");
-}
-
 
 internal class NotImplementedAgentIdentityService: IAgentIdentityService
 {
