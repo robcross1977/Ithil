@@ -51,9 +51,9 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<IAgentConfigRepository, RedisAgentConfigRepository>();
         if (configuration.GetValue<bool>("Ithil:AgentStore:UseInMemory"))
-            services.AddScoped<IApiKeyRepository, InMemoryApiKeyRepository>();
+            services.AddSingleton<IApiKeyRepository, InMemoryApiKeyRepository>();
         else
-            services.AddScoped<IApiKeyRepository, RedisApiKeyRepository>();
+            services.AddSingleton<IApiKeyRepository, RedisApiKeyRepository>();
         services.AddScoped<IAgentIdentityService, AgentIdentityService>();
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
