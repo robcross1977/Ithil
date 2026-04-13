@@ -272,16 +272,16 @@ public class AgentToolGenerator : IIncrementalGenerator
             .SelectMany(p => ToParamEntries(p, routeParams))
             .ToList();
 
-        // Group by name (case-insensitive) so collisions between route/query params and expanded
-        // body properties don't throw at build time. First occurrence wins — route and query
-        // params appear earlier in entries than expanded body properties, so they take priority.
+        // Group by name (case-insensitive) and resolve collisions by explicit source priority
+        // (route > query > body) so a body-type property never shadows a route or query param
+        // regardless of method-parameter order.
         var grouped = entries
             .GroupBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         return (
-            grouped.ToDictionary(g => g.Key, g => g.First().Source, StringComparer.OrdinalIgnoreCase),
-            grouped.ToDictionary(g => g.Key, g => g.First().JsonType, StringComparer.OrdinalIgnoreCase));
+            grouped.ToDictionary(g => g.Key, g => HighestPriorityEntry(g).Source, StringComparer.OrdinalIgnoreCase),
+            grouped.ToDictionary(g => g.Key, g => HighestPriorityEntry(g).JsonType, StringComparer.OrdinalIgnoreCase));
     }
 
     // Maps a single method parameter to one or more schema entries.
@@ -349,7 +349,21 @@ public class AgentToolGenerator : IIncrementalGenerator
         param.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == fullName);
 
     private static string ToCamelCase(string name) =>
-        string.IsNullOrEmpty(name) ? name : char.ToLower(name[0]) + name.Substring(1);
+        string.IsNullOrEmpty(name) ? name : char.ToLowerInvariant(name[0]) + name.Substring(1);
+
+    // route > query > body — ensures route/query params win over same-named expanded body properties
+    // regardless of the order they appear in the method signature.
+    private static (string Name, string Source, string JsonType) HighestPriorityEntry(
+        IEnumerable<(string Name, string Source, string JsonType)> entries)
+    {
+        static int Priority(string source) => source switch
+        {
+            "route" => 3,
+            "query" => 2,
+            _       => 1
+        };
+        return entries.OrderByDescending(e => Priority(e.Source)).First();
+    }
 
     // Escapes quotes inside attribute description strings so they don't break the generated C# source.
     private static string Escape(string s) => s.Replace("\"", "\\\"");
