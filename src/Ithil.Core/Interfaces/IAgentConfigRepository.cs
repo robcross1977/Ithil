@@ -13,9 +13,19 @@ public interface IAgentConfigRepository
     /// </summary>
     Task<Option<AgentConfig>> GetAsync(string agentId);
 
-
     /// <summary>
     /// Creates or updates the configuration for an agent.
     /// </summary>
     Task UpsertAsync(AgentConfig config);
+
+    /// <summary>
+    /// Returns all registered agent configurations
+    /// </summary>
+    Task<Seq<AgentConfig>> GetAllAsync();
+
+    /// <summary>
+    /// Deletes the configuration for a given agent.
+    /// Returns true if deleted, false if not found.
+    /// </summary>
+    Task<bool> DeleteAsync(string agentId);
 }

@@ -50,6 +50,10 @@ nvim
 *.swo
 *~
 
+# Demo script runtime artifacts
+.demo-pids/
+.demo-logs/
+
 # Claude Code agent worktrees
 .claude/worktrees/
 
