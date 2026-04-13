@@ -9,18 +9,10 @@ namespace Ithil.Management.Repositories;
 /// <summary>
 /// Redis-backed agent configuration store. Persists configs in a Redis Hash at key <c>ithil:agents</c>.
 /// </summary>
-public class RedisAgentConfigRepository : IAgentConfigRepository
+public class RedisAgentConfigRepository(IConnectionMultiplexer redis) : IAgentConfigRepository
 {
     private const string HashKey = "ithil:agents";
-    private readonly IDatabase _db;
-
-    /// <summary>
-    /// Initialises the repository using the provided Redis connection.
-    /// </summary>
-    public RedisAgentConfigRepository(IConnectionMultiplexer redis)
-    {
-        _db = redis.GetDatabase();
-    }
+    private readonly IDatabase _db = redis.GetDatabase();
 
     /// <summary>
     /// Returns the config for the given agent, or None if not found.
