@@ -12,6 +12,30 @@
 
 ## Core Principles
 
+### C# Language Style
+
+- **Always use primary constructors** — prefer `public class Foo(IBar bar)` over a separate constructor body with field assignments
+- Use target-typed `new()` where the type is obvious from context
+- Prefer expression-bodied members for single-expression methods and properties
+
+```csharp
+// ✅ GOOD
+public class RedisApiKeyRepository(IConnectionMultiplexer redis) : IApiKeyRepository
+{
+    private readonly IDatabase _db = redis.GetDatabase();
+}
+
+// ❌ BAD
+public class RedisApiKeyRepository : IApiKeyRepository
+{
+    private readonly IDatabase _db;
+    public RedisApiKeyRepository(IConnectionMultiplexer redis)
+    {
+        _db = redis.GetDatabase();
+    }
+}
+```
+
 ### Functional Programming
 
 - Prefer functional programming principles throughout
