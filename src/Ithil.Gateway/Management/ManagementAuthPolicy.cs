@@ -21,10 +21,12 @@ public static class ManagementAuthPolicy
 
     /// <summary>
     /// Requires an authenticated user with an agent_id claim.
-    /// Admin tokens (no agent_id) are rejected by this policy.
+    /// Admin-scoped tokens are rejected by this policy, even if they also include agent_id.
     /// </summary>
     public static AuthorizationBuilder AddAgentPolicy(this AuthorizationBuilder builder) =>
         builder.AddPolicy(AgentPolicyName, policy => policy
             .RequireAuthenticatedUser()
-            .RequireClaim("agent_id"));
+            .RequireClaim("agent_id")
+            .RequireAssertion(context => !context.User.HasClaim(claim =>
+                claim.Type == "scope" && claim.Value == "admin")));
 }

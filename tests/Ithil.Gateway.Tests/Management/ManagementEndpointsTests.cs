@@ -71,13 +71,21 @@ public class ManagementEndpointsTests
         return app;
     }
 
-    // Builds a JWT with an optional scope claim to simulate admin vs agent tokens.
+    // Builds a JWT to simulate either an agent token (default) or an admin token (when scope is provided).
     private static string BuildToken(string? scope = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKeyValue));
-        var claims = new Dictionary<string, object> { { "agent_id", "test-agent" } };
-        if (scope is not null)
+        var claims = new Dictionary<string, object>();
+
+        if (scope is null)
+        {
+            claims["agent_id"] = "test-agent";
+        }
+        else
+        {
             claims["scope"] = scope;
+            claims["sub"] = "test-admin-user";
+        }
 
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {

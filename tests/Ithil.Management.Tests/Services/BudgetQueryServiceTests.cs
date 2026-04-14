@@ -45,6 +45,8 @@ public class BudgetQueryServiceTests
     public async Task Reset_CallsBudgetEngine_AndAuditLogger()
     {
         _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(MakeConfig()));
+        _budget.ResetUsageAsync("agt_abc123").Returns(Task.CompletedTask);
+        _audit.WriteAsync(Arg.Any<AuditRecord>()).Returns(Task.CompletedTask);
 
         var result = await CreateService().ResetAsync("agt_abc123", "operator@example.com");
 
