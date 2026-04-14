@@ -72,8 +72,9 @@ public class TraceRingBufferTests
         threads.ForEach(t => t.Start());
         threads.ForEach(t => t.Join());
 
-        var act = () => buf.GetRecent(500);
+        var act = () => buf.GetRecent(500).ToList();
         act.Should().NotThrow();
-        buf.GetRecent(500).Count().Should().BeGreaterThan(0);
+        var recent = buf.GetRecent(500).ToList();
+        recent.Should().HaveCount(500);
     }
 }
