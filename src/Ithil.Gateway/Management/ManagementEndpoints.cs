@@ -1,6 +1,7 @@
 using Ithil.Core.Interfaces;
 using Ithil.Management.Models;
 using Ithil.Management.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Ithil.Gateway.Management;
 
@@ -45,10 +46,14 @@ public static class ManagementEndpoints
                 Right: status => Results.Ok(status),
                 Left: ToHttpError));
 
-        group.MapDelete("/agents/{id}/budget", async (string id, IBudgetQueryService svc, HttpContext ctx) =>
+        group.MapDelete("/agents/{id}/budget", async (
+            string id, IBudgetQueryService svc, HttpContext ctx,
+            ILogger<ManagementEndpoints> logger) =>
         {
             var operatorId = ctx.User.FindFirst("sub")?.Value
                 ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (operatorId is null)
+                logger.LogWarning("Budget reset for agent {AgentId} has no operator identity — sub claim absent from token.", id);
             return (await svc.ResetAsync(id, operatorId)).Match(
                 Right: _ => Results.NoContent(),
                 Left: ToHttpError);

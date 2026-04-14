@@ -29,7 +29,7 @@ public class AgentManagementServiceTests
         _apiKeys.CreateAsync(Arg.Any<string>()).Returns("ithil_live_testkey");
         _configs.UpsertAsync(Arg.Any<AgentConfig>()).Returns(Task.CompletedTask);
 
-        var result = await CreateService().CreateAsync(new CreateAgentRequest { Label = "Finance Agent" });
+        var result = await CreateService().CreateAsync(new CreateAgentRequest { Label = "Finance Agent", DailyTokenBudget = 50_000 });
 
         result.IsRight.Should().BeTrue();
         result.IfRight(r => r.ApiKey.Should().Be("ithil_live_testkey"));
@@ -44,7 +44,7 @@ public class AgentManagementServiceTests
         AgentConfig? stored = null;
         _configs.UpsertAsync(Arg.Do<AgentConfig>(c => stored = c)).Returns(Task.CompletedTask);
 
-        await CreateService().CreateAsync(new CreateAgentRequest { Label = "Finance Agent" });
+        await CreateService().CreateAsync(new CreateAgentRequest { Label = "Finance Agent", DailyTokenBudget = 50_000 });
 
         stored.Should().NotBeNull();
         stored!.ApiKeyHash.Should().NotBe(plainKey);
