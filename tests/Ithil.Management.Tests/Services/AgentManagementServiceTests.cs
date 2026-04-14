@@ -42,7 +42,7 @@ public class AgentManagementServiceTests
         _apiKeys.CreateAsync(Arg.Any<string>()).Returns(plainKey);
 
         AgentConfig? stored = null;
-        await _configs.UpsertAsync(Arg.Do<AgentConfig>(c => stored = c));
+        _configs.UpsertAsync(Arg.Do<AgentConfig>(c => stored = c)).Returns(Task.CompletedTask);
 
         await CreateService().CreateAsync(new CreateAgentRequest { Label = "Finance Agent" });
 

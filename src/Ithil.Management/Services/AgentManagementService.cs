@@ -42,8 +42,8 @@ public class AgentManagementService(
             AgentId          = agentId,
             Label            = request.Label,
             DailyTokenBudget = request.DailyTokenBudget,
-            AllowedTools     = request.AllowedTools.ToSeq(),
-            Scopes           = request.Scopes.ToSeq(),
+            AllowedTools     = (request.AllowedTools ?? []).ToSeq(),
+            Scopes           = (request.Scopes ?? []).ToSeq(),
             ApiKeyHash       = ApiKeyHasher.Hash(plainKey),
             IsActive         = true,
         };

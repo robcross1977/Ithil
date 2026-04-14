@@ -47,7 +47,8 @@ public static class ServiceCollectionExtensions
             .AddJwtBearer(options => options.TokenValidationParameters = tokenValidationParameters);
         services.AddAuthorization();
         services.AddAuthorizationBuilder()
-            .AddManagementPolicy();
+            .AddManagementPolicy()
+            .AddAgentPolicy();
         services.AddScoped<IJwtIdentityResolver, JwtIdentityResolver>();
         services.AddScoped<IApiKeyIdentityResolver, ApiKeyIdentityResolver>();
         if (configuration.GetValue<bool>("Ithil:AgentStore:UseInMemory"))

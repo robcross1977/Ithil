@@ -37,7 +37,7 @@ public class BudgetQueryServiceTests
         {
             r.TokensUsedToday.Should().Be(23_400);
             r.DailyBudget.Should().Be(50_000);
-            r.PercentageUsed.Should().Be(46.8);
+            r.PercentageUsed.Should().BeApproximately(46.8, 0.001);
         });
     }
 

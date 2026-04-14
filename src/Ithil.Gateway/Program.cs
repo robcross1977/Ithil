@@ -105,7 +105,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapManagementEndpoints();
-app.MapMcp("/mcp").RequireAuthorization();
+app.MapMcp("/mcp").RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
 app.MapReverseProxy();
 
 app.Run();

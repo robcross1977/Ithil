@@ -47,7 +47,8 @@ public static class ManagementEndpoints
 
         group.MapDelete("/agents/{id}/budget", async (string id, IBudgetQueryService svc, HttpContext ctx) =>
         {
-            var operatorId = ctx.User.FindFirst("sub")?.Value;
+            var operatorId = ctx.User.FindFirst("sub")?.Value
+                ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             return (await svc.ResetAsync(id, operatorId)).Match(
                 Right: _ => Results.NoContent(),
                 Left: ToHttpError);
