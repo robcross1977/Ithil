@@ -49,8 +49,9 @@ public static class ManagementEndpoints
 
         group.MapDelete("/agents/{id}/budget", async (
             string id, IBudgetQueryService svc, HttpContext ctx,
-            [FromServices] ILogger logger) =>
+            [FromServices] ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("Ithil.Gateway.Management");
             var operatorId = ctx.User.FindFirst("sub")?.Value
                 ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (operatorId is null)

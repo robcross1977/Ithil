@@ -45,6 +45,9 @@ public class TraceRingBuffer(IOptions<TraceOptions> options) : ITraceBuffer
     /// <inheritdoc />
     public Seq<AgentTraceEvent> GetRecent(int count)
     {
+        if (count <= 0)
+            return Seq<AgentTraceEvent>.Empty;
+
         lock (_lock)
         {
             var take = Math.Min(count, _count);

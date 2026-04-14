@@ -139,6 +139,8 @@ public static class ServiceCollectionExtensions
         services.AddSignalR();
         var traceOptions = new Tracing.TraceOptions();
         configuration.GetSection("Ithil:Trace").Bind(traceOptions);
+        if (traceOptions.BufferSize <= 0)
+            throw new InvalidOperationException($"Ithil:Trace:BufferSize must be greater than 0; configured value: {traceOptions.BufferSize}.");
         services.AddSingleton(Options.Create(traceOptions));
         services.AddSingleton<ITraceBuffer, Tracing.TraceRingBuffer>();
         services.AddSingleton<ITraceNotifier, TraceNotifier>();
