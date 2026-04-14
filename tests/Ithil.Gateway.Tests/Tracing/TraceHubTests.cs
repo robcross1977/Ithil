@@ -35,7 +35,9 @@ public class TraceHubTests
 
         await caller.Received(1).SendCoreAsync(
             "TraceHistory",
-            Arg.Is<object[]>(args => args.Length == 1),
+            Arg.Is<object[]>(args =>
+                args.Length == 1 &&
+                ((Seq<AgentTraceEvent>)args[0]).SequenceEqual(events)),
             Arg.Any<CancellationToken>()
         );
     }

@@ -128,5 +128,3 @@ different instance and lose continuity.
 
 For most deployments, the Redis backplane is the right choice because it requires no
 load-balancer configuration and handles instance restarts transparently.
-
-See `Ithil.Dashboard/Hubs/README.md` for the full backplane discussion.

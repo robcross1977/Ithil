@@ -57,8 +57,9 @@ public class TraceRingBuffer(IOptions<TraceOptions> options) : ITraceBuffer
             {
                 // Walk backwards from the most recently written slot.
                 // _writeIndex points to the NEXT slot to write, so offset by -1 to get the newest.
-                // The double-mod ensures the index stays positive even when _writeIndex is 0.
-                var idx = ((_writeIndex - 1 - i) % _slots.Length + _slots.Length) % _slots.Length;
+                // Adding _slots.Length before the mod guarantees a positive result because
+                // (_writeIndex - 1 - i) is always in [-_slots.Length, _slots.Length-2].
+                var idx = (_writeIndex - 1 - i + _slots.Length) % _slots.Length;
                 result[i] = _slots[idx]!;
             }
 

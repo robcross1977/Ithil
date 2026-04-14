@@ -58,6 +58,15 @@ public class TraceNotifierTests
     }
 
     [Fact]
+    public async Task NotifyAsync_WritesToBuffer()
+    {
+        var evt = MakeEvent();
+        await CreateNotifier().NotifyAsync(evt);
+
+        _buffer.Received(1).Add(evt);
+    }
+
+    [Fact]
     public void AgentTraceEvent_Timestamp_IsUtcIso8601()
     {
         var evt = new AgentTraceEvent
