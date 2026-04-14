@@ -51,7 +51,16 @@ public class AgentManagementService(
             IsActive         = true,
         };
 
-        await agentConfigs.UpsertAsync(config);
+        try
+        {
+            await agentConfigs.UpsertAsync(config);
+        }
+        catch
+        {
+            // Compensate: remove the orphaned API key if config persistence fails.
+            await apiKeys.DeleteAsync(config.ApiKeyHash!);
+            throw;
+        }
 
         return new CreateAgentResponse
         {
