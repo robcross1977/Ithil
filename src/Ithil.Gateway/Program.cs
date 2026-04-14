@@ -64,7 +64,7 @@ app.Services.GetRequiredService<ITokenCounter>();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapHub<TraceHub>("/hubs/trace");
+app.MapHub<TraceHub>("/hubs/trace").RequireAuthorization();
 
 // Seed a dev agent so identity resolution succeeds during local testing.
 if (app.Environment.IsDevelopment())

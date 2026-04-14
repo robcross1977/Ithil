@@ -1,6 +1,7 @@
 using Ithil.Core.Interfaces;
 using Ithil.Management.Models;
 using Ithil.Management.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace Ithil.Gateway.Management;
@@ -48,8 +49,9 @@ public static class ManagementEndpoints
 
         group.MapDelete("/agents/{id}/budget", async (
             string id, IBudgetQueryService svc, HttpContext ctx,
-            ILogger<ManagementEndpoints> logger) =>
+            [FromServices] ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("Ithil.Gateway.Management");
             var operatorId = ctx.User.FindFirst("sub")?.Value
                 ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (operatorId is null)
