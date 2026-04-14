@@ -52,6 +52,26 @@ public class AgentManagementServiceTests
     }
 
     [Fact]
+    public async Task Create_ReturnsInvalid_WhenBudgetIsZero()
+    {
+        var result = await CreateService().CreateAsync(
+            new CreateAgentRequest { Label = "Finance Agent", DailyTokenBudget = 0 });
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.Invalid>());
+    }
+
+    [Fact]
+    public async Task Update_ReturnsInvalid_WhenLabelIsBlank()
+    {
+        var result = await CreateService().UpdateAsync(
+            "agt_abc123", new UpdateAgentRequest { Label = "   " });
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.Invalid>());
+    }
+
+    [Fact]
     public async Task Get_ReturnsRight_ForKnownAgent()
     {
         _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(MakeConfig()));

@@ -34,6 +34,9 @@ public class AgentManagementService(
         if (string.IsNullOrWhiteSpace(request.Label))
             return new ManagementError.Invalid("Label is required.");
 
+        if (request.DailyTokenBudget <= 0)
+            return new ManagementError.Invalid("DailyTokenBudget must be greater than 0.");
+
         var agentId  = GenerateAgentId();
         var plainKey = await apiKeys.CreateAsync(agentId);
 
@@ -65,6 +68,9 @@ public class AgentManagementService(
     public async Task<Either<ManagementError, AgentResponse>> UpdateAsync(
         string agentId, UpdateAgentRequest request)
     {
+        if (request.Label is not null && string.IsNullOrWhiteSpace(request.Label))
+            return new ManagementError.Invalid("Label cannot be blank.");
+
         var existing = await agentConfigs.GetAsync(agentId);
         if (existing.IsNone)
             return new ManagementError.NotFound(agentId);
