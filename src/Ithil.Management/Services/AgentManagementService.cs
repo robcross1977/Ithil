@@ -71,6 +71,9 @@ public class AgentManagementService(
         if (request.Label is not null && string.IsNullOrWhiteSpace(request.Label))
             return new ManagementError.Invalid("Label cannot be blank.");
 
+        if (request.DailyTokenBudget is not null && request.DailyTokenBudget <= 0)
+            return new ManagementError.Invalid("DailyTokenBudget must be greater than 0.");
+
         var existing = await agentConfigs.GetAsync(agentId);
         if (existing.IsNone)
             return new ManagementError.NotFound(agentId);
@@ -96,9 +99,12 @@ public class AgentManagementService(
             return new ManagementError.NotFound(agentId);
 
         var config = existing.Match(x => x, () => default!);
+        var deleted = await agentConfigs.DeleteAsync(agentId);
+        if (!deleted)
+            return new ManagementError.NotFound(agentId);
+
         if (config.ApiKeyHash is not null)
             await apiKeys.DeleteAsync(config.ApiKeyHash);
-        await agentConfigs.DeleteAsync(agentId);
         return Unit.Default;
     }
 

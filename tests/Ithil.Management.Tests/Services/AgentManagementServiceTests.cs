@@ -113,6 +113,16 @@ public class AgentManagementServiceTests
     }
 
     [Fact]
+    public async Task Update_ReturnsInvalid_WhenBudgetIsZeroOrNegative()
+    {
+        var result = await CreateService().UpdateAsync(
+            "agt_abc123", new UpdateAgentRequest { DailyTokenBudget = 0 });
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.Invalid>());
+    }
+
+    [Fact]
     public async Task Delete_ReturnsNotFound_ForUnknownAgent()
     {
         _configs.GetAsync("unknown").Returns(Option<AgentConfig>.None);
@@ -121,5 +131,18 @@ public class AgentManagementServiceTests
 
         result.IsLeft.Should().BeTrue();
         result.IfLeft(e => e.Should().BeOfType<ManagementError.NotFound>());
+    }
+
+    [Fact]
+    public async Task Delete_ReturnsNotFound_WhenConfigDeleteFails()
+    {
+        _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(MakeConfig()));
+        _configs.DeleteAsync("agt_abc123").Returns(false);
+
+        var result = await CreateService().DeleteAsync("agt_abc123");
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.NotFound>());
+        await _apiKeys.DidNotReceive().DeleteAsync(Arg.Any<string>());
     }
 }
