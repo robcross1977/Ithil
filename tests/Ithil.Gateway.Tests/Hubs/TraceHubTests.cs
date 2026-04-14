@@ -1,7 +1,11 @@
 using FluentAssertions;
+using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
+using Ithil.Gateway.Tracing;
+using LanguageExt;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace Ithil.Gateway.Tests.Hubs;
@@ -10,10 +14,15 @@ public class TraceHubTests
 {
     private readonly IGroupManager _groups = Substitute.For<IGroupManager>();
     private readonly HubCallerContext _context = Substitute.For<HubCallerContext>();
+    private readonly ITraceBuffer _buffer = Substitute.For<ITraceBuffer>();
 
     private TraceHub CreateHub()
     {
-        return new() { Groups = _groups, Context = _context };
+        _buffer.GetRecent(Arg.Any<int>()).Returns(Seq<AgentTraceEvent>.Empty);
+        var hub = new TraceHub(_buffer, Options.Create(new TraceOptions()));
+        hub.Groups = _groups;
+        hub.Context = _context;
+        return hub;
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
 using Microsoft.AspNetCore.SignalR;
@@ -10,13 +11,14 @@ public class TraceNotifierTests
 {
     private readonly IHubContext<TraceHub> _hub = Substitute.For<IHubContext<TraceHub>>();
     private readonly IClientProxy _clientProxy = Substitute.For<IClientProxy>();
+    private readonly ITraceBuffer _buffer = Substitute.For<ITraceBuffer>();
 
     public TraceNotifierTests()
     {
         _hub.Clients.Group(Arg.Any<string>()).Returns(_clientProxy);
     }
 
-    private TraceNotifier CreateNotifier() => new(_hub);
+    private TraceNotifier CreateNotifier() => new(_hub, _buffer);
 
     private static AgentTraceEvent MakeEvent(string agentId = "claude-prod-01") =>
         new()

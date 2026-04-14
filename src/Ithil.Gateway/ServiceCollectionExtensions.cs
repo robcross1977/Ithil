@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.Channels;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Ithil.Budget;
 using Ithil.Cache;
@@ -136,6 +137,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IToolAllowlistService, ToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
         services.AddSignalR();
+        var traceOptions = new Tracing.TraceOptions();
+        configuration.GetSection("Ithil:Trace").Bind(traceOptions);
+        services.AddSingleton(Options.Create(traceOptions));
+        services.AddSingleton<ITraceBuffer, Tracing.TraceRingBuffer>();
         services.AddSingleton<ITraceNotifier, TraceNotifier>();
         services.AddSingleton<PrivacyFilterOptions>();
         services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
