@@ -21,4 +21,10 @@ public record AuditRecord
     public bool PiiScrubbed { get; init; }
 
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// The operator who performed this action. Populated from the admin JWT sub claim.
+    /// Only set for operator-initiated records such as budget resets.
+    /// </summary>
+    public string? OperatorId { get; init; }
 }

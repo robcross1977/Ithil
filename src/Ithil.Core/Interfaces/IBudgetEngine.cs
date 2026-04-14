@@ -16,7 +16,12 @@ public interface IBudgetEngine
     Task RecordUsageAsync(string agentId, int tokens, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Manages per-agent daily token budgets.
+    /// Returns the agent's token usage for today.
     /// </summary>
     Task<int> GetUsageAsync(string agentId);
+
+    /// <summary>
+    /// Resets the agent's token usage to zero for today.
+    /// </summary>
+    Task ResetUsageAsync(string agentId, CancellationToken cancellationToken = default);
 }

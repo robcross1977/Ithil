@@ -151,7 +151,8 @@ public class ToolCallGovernancePipelineTests
         var pipeline = CreatePipeline();
         var traceStatuses = new List<string>();
         _traceNotifier
-            .NotifyAsync(Arg.Do<AgentTraceEvent>(e => traceStatuses.Add(e.Status)));
+            .NotifyAsync(Arg.Do<AgentTraceEvent>(e => traceStatuses.Add(e.Status)))
+            .Returns(Task.CompletedTask);
 
         await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
 

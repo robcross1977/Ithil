@@ -4,23 +4,10 @@ using LanguageExt;
 
 namespace Ithil.Gateway.Stubs;
 
-
-internal class NotImplementedAgentIdentityService: IAgentIdentityService
+internal class NotImplementedAgentIdentityService : IAgentIdentityService
 {
     public Task<Option<AgentIdentity>> ResolveAgentAsync(HttpContext context) =>
         throw new NotImplementedException("AgentIdentityService not yet implemented");
-}
-
-internal class NotImplementedBudgetEngine : IBudgetEngine
-{
-    public Task<bool> IsWithinBudgetAsync(string agentId, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("BudgetEngine not yet implemented");
-
-    public Task RecordUsageAsync(string agentId, int tokens, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("BudgetEngine not yet implemented");
-
-    public Task<int> GetUsageAsync(string agentId) =>
-        throw new NotImplementedException("BudgetEngine not yet implemented");
 }
 
 // No-op until TraceNotifier is implemented.
@@ -44,5 +31,3 @@ internal class DefaultTraceIdFactory : ITraceIdFactory
 {
     public string Create() => Guid.NewGuid().ToString("N");
 }
-
-
