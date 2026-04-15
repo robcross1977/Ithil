@@ -4,8 +4,23 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PID_DIR="$REPO_ROOT/.demo-pids"
 LOG_DIR="$REPO_ROOT/.demo-logs"
-CLAUDE_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+case "$(uname -s)" in
+    Darwin*)          CLAUDE_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json" ;;
+    MINGW*|MSYS*|CYGWIN*) CLAUDE_CONFIG="$APPDATA/Claude/claude_desktop_config.json" ;;
+    *) echo "Unsupported OS: $(uname -s)"; exit 1 ;;
+esac
 GATEWAY_URL="http://localhost:5128"
+
+for cmd in curl jq docker dotnet; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo "Required tool not found: $cmd"
+        case "$cmd" in
+            jq)     echo "  Mac: brew install jq  |  Windows: winget install jqlang.jq" ;;
+            docker) echo "  Install Docker Desktop: https://www.docker.com/products/docker-desktop" ;;
+        esac
+        exit 1
+    fi
+done
 
 mkdir -p "$PID_DIR" "$LOG_DIR"
 
@@ -22,14 +37,20 @@ fi
 echo "-> Starting Redis..."
 docker compose -f "$REPO_ROOT/docker/docker-compose.yml" up -d
 
+echo "-> Building SampleApi..."
+dotnet build "$REPO_ROOT/samples/SampleApi/SampleApi.csproj" >> "$LOG_DIR/sampleapi.log" 2>&1
+
+echo "-> Building Gateway..."
+dotnet build "$REPO_ROOT/src/Ithil.Gateway/Ithil.Gateway.csproj" >> "$LOG_DIR/gateway.log" 2>&1
+
 echo "-> Starting SampleApi..."
-dotnet run --project "$REPO_ROOT/samples/SampleApi/SampleApi.csproj" \
-    > "$LOG_DIR/sampleapi.log" 2>&1 &
+dotnet run --no-build --project "$REPO_ROOT/samples/SampleApi/SampleApi.csproj" \
+    >> "$LOG_DIR/sampleapi.log" 2>&1 &
 echo $! > "$PID_DIR/sampleapi.pid"
 
 echo "-> Starting Gateway..."
-dotnet run --project "$REPO_ROOT/src/Ithil.Gateway/Ithil.Gateway.csproj" \
-    > "$LOG_DIR/gateway.log" 2>&1 &
+dotnet run --no-build --project "$REPO_ROOT/src/Ithil.Gateway/Ithil.Gateway.csproj" \
+    >> "$LOG_DIR/gateway.log" 2>&1 &
 echo $! > "$PID_DIR/gateway.pid"
 
 echo "-> Waiting for Gateway (this includes build time)..."

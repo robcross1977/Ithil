@@ -17,8 +17,15 @@ stop_process() {
     echo "-> Stopping $name (PID $pid)..."
 
     # Kill children first (dotnet run forks the actual app process)
-    pkill -P "$pid" 2>/dev/null || true
-    kill "$pid" 2>/dev/null || true
+    case "$(uname -s)" in
+        Darwin*|Linux*)
+            pkill -P "$pid" 2>/dev/null || true
+            kill "$pid" 2>/dev/null || true
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            taskkill //F //T //PID "$pid" 2>/dev/null || true
+            ;;
+    esac
 
     rm -f "$pidfile"
 }
