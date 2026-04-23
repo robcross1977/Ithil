@@ -88,11 +88,21 @@ if (app.Environment.IsDevelopment())
         }
     );
 
+    // Guards the /dev/* token endpoints: even inside IsDevelopment(), refuse any caller that
+    // isn't on loopback. Stops accidental admin-token issuance if DOTNET_ENVIRONMENT leaks to
+    // a shared/staging host.
+    static bool IsLoopback(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress is { } ip &&
+        (System.Net.IPAddress.IsLoopback(ip) ||
+         ip.Equals(ctx.Connection.LocalIpAddress));
+
     // Temporary endpoint - generates a dev JWT for manual testing.
     app.MapGet(
         "/dev/token",
-        (IConfiguration config) =>
+        (HttpContext ctx, IConfiguration config) =>
         {
+            if (!IsLoopback(ctx))
+                return Results.NotFound();
             var jwt = config.GetSection("Ithil:Jwt");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
             var handler = new JsonWebTokenHandler();
@@ -113,8 +123,10 @@ if (app.Environment.IsDevelopment())
     // Generates a dashboard admin JWT for testing the /dashboard/login page.
     app.MapGet(
         "/dev/admin-token",
-        (IConfiguration config) =>
+        (HttpContext ctx, IConfiguration config) =>
         {
+            if (!IsLoopback(ctx))
+                return Results.NotFound();
             var jwt = config.GetSection("Ithil:Jwt");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
             var handler = new JsonWebTokenHandler();

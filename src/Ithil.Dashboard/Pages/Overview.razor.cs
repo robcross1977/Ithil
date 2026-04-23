@@ -29,21 +29,25 @@ public partial class Overview : ComponentBase, IAsyncDisposable
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
-        _timer = new Timer(_ => InvokeAsync(async () =>
+        _timer = new Timer(_ =>
         {
-            // Skip this tick if a previous refresh is still running (e.g. slow backend).
+            // Guard on the timer thread BEFORE queuing onto the renderer, otherwise
+            // multiple ticks can stack InvokeAsync callbacks before the first one flips the flag.
             if (Interlocked.CompareExchange(ref _refreshing, 1, 0) != 0)
                 return;
-            try
+            _ = InvokeAsync(async () =>
             {
-                await RefreshAsync();
-                StateHasChanged();
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _refreshing, 0);
-            }
-        }), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+                try
+                {
+                    await RefreshAsync();
+                    StateHasChanged();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _refreshing, 0);
+                }
+            });
+        }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
     }
 
     private async Task RefreshAsync()
