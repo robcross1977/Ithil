@@ -53,7 +53,7 @@ public class ToolCallRouterTests
             Args("""{"request":{"Sku":"ABC","Quantity":10}}"""));
 
         request.Content.Should().NotBeNull();
-        var body = await request.Content!.ReadAsStringAsync();
+        var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.Should().Contain("ABC");
         body.Should().Contain("10");
     }
@@ -78,7 +78,7 @@ public class ToolCallRouterTests
             Args("""{"title":"Hello","userId":7}"""));
 
         request.Content.Should().NotBeNull();
-        var body = await request.Content!.ReadAsStringAsync();
+        var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.Should().Contain("title");
         body.Should().Contain("Hello");
         body.Should().Contain("userId");

@@ -9,6 +9,7 @@
     <Project Path="src/Ithil.Core/Ithil.Core.csproj" />
     <Project Path="src/Ithil.Gateway/Ithil.Gateway.csproj" />
     <Project Path="src/Ithil.Hosting/Ithil.Hosting.csproj" />
+    <Project Path="src/Ithil.Dashboard/Ithil.Dashboard.csproj" />
     <Project Path="src/Ithil.Management/Ithil.Management.csproj" />
     <Project Path="src/Ithil.Privacy/Ithil.Privacy.csproj" />
     <Project Path="src/Ithil.SourceGenerator/Ithil.SourceGenerator.csproj" />
@@ -19,6 +20,7 @@
     <Project Path="tests/Ithil.Cache.Tests/Ithil.Cache.Tests.csproj" />
     <Project Path="tests/Ithil.Core.Tests/Ithil.Core.Tests.csproj" />
     <Project Path="tests/Ithil.Gateway.Tests/Ithil.Gateway.Tests.csproj" />
+    <Project Path="tests/Ithil.Dashboard.Tests/Ithil.Dashboard.Tests.csproj" />
     <Project Path="tests/Ithil.Management.Tests/Ithil.Management.Tests.csproj" />
     <Project Path="tests/Ithil.Privacy.Tests/Ithil.Privacy.Tests.csproj" />
     <Project Path="tests/Ithil.SourceGenerator.Tests/Ithil.SourceGenerator.Tests.csproj" />

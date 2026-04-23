@@ -18,11 +18,17 @@ public class AuditSinkTests
         var sink = new StdoutAuditSink();
         await sink.WriteAsync(BuildRecord("success"));
 
-        var output = stdout.ToString().Trim();
-        output.Should().NotBeEmpty();
-        var act = () => JsonDocument.Parse(output);
+        // Filter to the JSON line specifically — stdout may contain SDK diagnostic
+        // noise (e.g. preview-version warnings) before the sink output.
+        var jsonLine = stdout.ToString()
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .FirstOrDefault(l => l.StartsWith('{'));
+
+        jsonLine.Should().NotBeNullOrEmpty("sink must write at least one JSON line");
+        var act = () => JsonDocument.Parse(jsonLine!);
         act.Should().NotThrow("output must be valid JSON");
-        output.Should().NotContain("\n", "must be a single line");
+        jsonLine.Should().NotContain("\n", "must be a single line");
     }
 
     [Fact]

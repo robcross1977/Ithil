@@ -290,7 +290,7 @@ public class AgentToolGenerator : IIncrementalGenerator
         IParameterSymbol param, HashSet<string> routeParams)
     {
         if (IsInfrastructureParam(param))
-            return System.Array.Empty<(string, string, string)>();
+            return [];
 
         var source = ResolveSource(param, routeParams);
 
@@ -300,10 +300,10 @@ public class AgentToolGenerator : IIncrementalGenerator
             if (expanded.Count > 0) return expanded;
             // Empty type (no public properties) — emit as 'object' so the param appears in the
             // schema and the router still sends a body, rather than silently dropping it.
-            return new[] { (param.Name, "body", "object") };
+            return [(param.Name, "body", "object")];
         }
 
-        return new[] { (param.Name, source, TypeMapper.ToJsonType(param.Type).JsonType) };
+        return [(param.Name, source, TypeMapper.ToJsonType(param.Type).JsonType)];
     }
 
     // Expands a record/class body type into camelCase-named entries, one per public property.
@@ -324,7 +324,7 @@ public class AgentToolGenerator : IIncrementalGenerator
     }
 
     private static HashSet<string> ExtractRouteParams(string routePattern) =>
-        new HashSet<string>(
+        new(
             System.Text.RegularExpressions.Regex
                 .Matches(routePattern, @"\{(\w+)(?::[^}]*)?\}")
                 .Cast<System.Text.RegularExpressions.Match>()

@@ -1,0 +1,29 @@
+@page "/dashboard/circuits"
+@attribute [Authorize(Policy = DashboardAuthPolicy.PolicyName)]
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Ithil — Circuit Breakers</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Circuit Breakers</MudText>
+
+@if (!Circuits.GetAll().Any())
+{
+    <MudText Color="Color.Secondary">No circuit state changes received yet.</MudText>
+}
+else
+{
+    <MudTable Items="@Circuits.GetAll()" Dense="true" Hover="true" Elevation="1">
+        <HeaderContent>
+            <MudTh>Agent</MudTh>
+            <MudTh>Tool</MudTh>
+            <MudTh>State</MudTh>
+            <MudTh>Last Changed</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.AgentId</MudTd>
+            <MudTd>@context.ToolName</MudTd>
+            <MudTd><CircuitStateIndicator State="@context.State" /></MudTd>
+            <MudTd>@context.LastChanged</MudTd>
+        </RowTemplate>
+    </MudTable>
+}

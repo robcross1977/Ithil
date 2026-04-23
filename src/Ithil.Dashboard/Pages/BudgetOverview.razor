@@ -1,0 +1,27 @@
+@page "/dashboard/budget"
+@attribute [Authorize(Policy = DashboardAuthPolicy.PolicyName)]
+@rendermode InteractiveServer
+
+<PageTitle>Ithil — Budget</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Budget Overview</MudText>
+
+@if (Budgets.Count == 0)
+{
+    <MudText Color="Color.Secondary">Loading…</MudText>
+}
+else
+{
+    <MudGrid>
+        @foreach (var vm in Budgets)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="1">
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">@vm.AgentId</MudText>
+                        <BudgetGauge ViewModel="@vm" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}

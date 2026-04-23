@@ -1,12 +1,11 @@
-using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
-using Ithil.Gateway.Tracing;
 using LanguageExt;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using Ithil.Core;
 
 namespace Ithil.Gateway.Tests.Tracing;
 

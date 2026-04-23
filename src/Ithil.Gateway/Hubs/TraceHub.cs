@@ -1,7 +1,7 @@
 using Ithil.Core.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
-using Ithil.Gateway.Tracing;
+using Ithil.Core; 
 
 namespace Ithil.Gateway.Hubs;
 

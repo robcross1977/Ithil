@@ -1,0 +1,33 @@
+@page "/dashboard/trace"
+@attribute [Authorize(Policy = DashboardAuthPolicy.PolicyName)]
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Ithil — Trace Feed</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Live Trace Feed</MudText>
+
+<MudTextField @bind-Value="AgentFilter" Label="Filter by Agent ID" Immediate="true"
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Class="mb-4" />
+
+<MudTable Items="@Feed.GetIdentified(ActiveFilter)" Dense="true" Hover="true" Elevation="1">
+    <HeaderContent>
+        <MudTh>Time</MudTh><MudTh>Agent</MudTh><MudTh>Tool</MudTh>
+        <MudTh>Status</MudTh><MudTh>Tokens</MudTh><MudTh>Latency</MudTh><MudTh>Circuit</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <TraceEventRow Event="@context" />
+    </RowTemplate>
+</MudTable>
+
+<MudText Typo="Typo.h6" Class="mt-6 mb-2">Unidentified Traffic</MudText>
+
+<MudTable Items="@Feed.GetUnidentified()" Dense="true" Hover="true" Elevation="1">
+    <HeaderContent>
+        <MudTh>Time</MudTh><MudTh>Agent</MudTh><MudTh>Tool</MudTh>
+        <MudTh>Status</MudTh><MudTh>Tokens</MudTh><MudTh>Latency</MudTh><MudTh>Circuit</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <UnidentifiedTrafficRow Event="@context" />
+    </RowTemplate>
+</MudTable>

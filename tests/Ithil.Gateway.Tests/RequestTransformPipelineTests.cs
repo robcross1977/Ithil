@@ -45,7 +45,7 @@ public class RequestTransformPipelineTests
         _identityService
             .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
-        _budgetEngine.IsWithinBudgetAsync(agentId).Returns(false);
+        _budgetEngine.IsWithinBudgetAsync(agentId, Arg.Any<CancellationToken>()).Returns(false);
 
         var pipeline = CreatePipeline();
         DefaultHttpContext context = new();
@@ -63,7 +63,7 @@ public class RequestTransformPipelineTests
         _identityService
             .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
-        _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
+        _budgetEngine.IsWithinBudgetAsync(agentId, Arg.Any<CancellationToken>()).Returns(true);
         _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(false);
 
         var pipeline = CreatePipeline();
@@ -85,7 +85,7 @@ public class RequestTransformPipelineTests
         _identityService
             .ResolveAgentAsync(Arg.Any<HttpContext>())
             .Returns(Option<AgentIdentity>.Some(identity));
-        _budgetEngine.IsWithinBudgetAsync(agentId).Returns(true);
+        _budgetEngine.IsWithinBudgetAsync(agentId, Arg.Any<CancellationToken>()).Returns(true);
         _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(true);
         _traceIdFactory.Create().Returns(traceId);
 

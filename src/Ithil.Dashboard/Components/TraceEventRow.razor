@@ -1,0 +1,11 @@
+﻿<MudTr Class="@RowClass">
+    <MudTd>@Event.Timestamp</MudTd>
+    <MudTd>@Event.AgentId</MudTd>
+    <MudTd>@Event.ToolName</MudTd>
+    <MudTd>
+        <MudChip T="string" Color="@StatusColor" Size="Size.Small">@Event.Status</MudChip>
+    </MudTd>
+    <MudTd>@Event.TokensUsed</MudTd>
+    <MudTd>@(Event.LatencyMs.HasValue ? $"{Event.LatencyMs}ms" : "—")</MudTd>
+    <MudTd>@(Event.CircuitState ?? "—")</MudTd>
+</MudTr>

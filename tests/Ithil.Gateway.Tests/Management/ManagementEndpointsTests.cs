@@ -103,7 +103,7 @@ public class ManagementEndpointsTests
         await using var app = await BuildTestAppAsync();
         var client = app.GetTestClient();
 
-        var response = await client.GetAsync("/management/agents");
+        var response = await client.GetAsync("/management/agents", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -117,7 +117,7 @@ public class ManagementEndpointsTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", BuildToken(scope: null));
 
-        var response = await client.GetAsync("/management/agents");
+        var response = await client.GetAsync("/management/agents", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -142,7 +142,7 @@ public class ManagementEndpointsTests
         var body = JsonSerializer.Serialize(new CreateAgentRequest { Label = "New Agent" });
         var response = await client.PostAsync(
             "/management/agents",
-            new StringContent(body, Encoding.UTF8, "application/json"));
+            new StringContent(body, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
@@ -159,7 +159,7 @@ public class ManagementEndpointsTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", BuildToken(scope: "admin"));
 
-        var response = await client.GetAsync("/management/agents/unknown");
+        var response = await client.GetAsync("/management/agents/unknown", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
