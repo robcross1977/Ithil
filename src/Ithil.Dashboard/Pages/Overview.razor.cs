@@ -63,11 +63,18 @@ public partial class Overview : ComponentBase, IAsyncDisposable
             budget.IfSome(vm => total += vm.TokensUsedToday);
         TotalTokensToday = total;
 
-        var cutoff = DateTime.UtcNow.AddSeconds(-60);
+        // Trace timestamps are emitted round-trip ("O") format; parse as DateTimeOffset and
+        // compare in UTC so the 60-second window is accurate on non-UTC hosts.
+        var cutoff = DateTimeOffset.UtcNow.AddSeconds(-60);
         RecentRequestCount = TraceBuffer
             .GetRecent(TraceOptions.Value.BufferSize)
             .Count(e => !string.IsNullOrWhiteSpace(e.AgentId) &&
-                        DateTime.TryParse(e.Timestamp, out var ts) && ts >= cutoff);
+                        DateTimeOffset.TryParse(
+                            e.Timestamp,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.AssumeUniversal
+                                | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                            out var ts) && ts >= cutoff);
     }
 
     public async ValueTask DisposeAsync()
