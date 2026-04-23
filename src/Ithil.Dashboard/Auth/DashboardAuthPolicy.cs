@@ -16,8 +16,8 @@ public static class DashboardAuthPolicy
     /// validated against the dashboard cookie scheme only.
     /// </summary>
     public static AuthorizationBuilder AddDashboardPolicy(
-        this AuthorizationBuilder builer) =>
-            builer.AddPolicy(PolicyName, policy => policy
+        this AuthorizationBuilder builder) =>
+            builder.AddPolicy(PolicyName, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim("scope", "admin")
                 .AddAuthenticationSchemes(CookieScheme));

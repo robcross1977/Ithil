@@ -29,6 +29,10 @@ public static class DashboardMiddlewareExtensions
             {
                 options.LoginPath = "/dashboard/login";
                 options.ExpireTimeSpan = TimeSpan.FromHours(8);
+                // Cookie hardening: HTTPS-only, no cross-site sends, not accessible to scripts.
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+                options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Strict;
             });
         services.AddAuthorizationBuilder()
             .AddDashboardPolicy();

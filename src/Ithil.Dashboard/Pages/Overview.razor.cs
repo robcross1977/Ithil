@@ -24,14 +24,25 @@ public partial class Overview : ComponentBase, IAsyncDisposable
     protected long TotalTokensToday { get; private set; }
 
     private Timer? _timer;
+    private int _refreshing;
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
         _timer = new Timer(_ => InvokeAsync(async () =>
         {
-            await RefreshAsync();
-            StateHasChanged();
+            // Skip this tick if a previous refresh is still running (e.g. slow backend).
+            if (Interlocked.CompareExchange(ref _refreshing, 1, 0) != 0)
+                return;
+            try
+            {
+                await RefreshAsync();
+                StateHasChanged();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _refreshing, 0);
+            }
         }), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
     }
 

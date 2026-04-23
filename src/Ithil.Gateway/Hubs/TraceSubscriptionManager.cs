@@ -1,15 +1,16 @@
 ﻿using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
 namespace Ithil.Gateway.Hubs;
 
 
 /// <summary>
-/// Thread-safe fan-out of trace eents to in-process Blazor dashboard components.
+/// Thread-safe fan-out of trace events to in-process Blazor dashboard components.
 /// Registered as a singleton - one instance serves all connected dashboard clients.
 /// </summary>
-public class TraceSubscriptionManager : ITraceSubscriptionManager
+public class TraceSubscriptionManager(ILogger<TraceSubscriptionManager> logger) : ITraceSubscriptionManager
 {
     private readonly ConcurrentDictionary<Action<AgentTraceEvent>, byte> _handlers = new();
 
@@ -34,9 +35,10 @@ public class TraceSubscriptionManager : ITraceSubscriptionManager
             {
                 handler(traceEvent);
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore exceptions from handlers to ensure all handlers get a chance to receive the event.
+                // Swallow per-handler failures so one bad subscriber can't block fan-out to the rest.
+                logger.LogWarning(ex, "[TraceSubscriptionManager] Handler threw while receiving trace event; continuing with remaining handlers.");
             }
         }
     }

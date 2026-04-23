@@ -1,6 +1,7 @@
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Dashboard;
+using Ithil.Dashboard.Auth;
 using Ithil.Gateway;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Management;
@@ -69,7 +70,9 @@ app.UseAuthorization();
 app.UseAntiforgery();
 app.UseStaticFiles();
 app.UseIthilDashboard();
-app.MapHub<TraceHub>("/hubs/trace").RequireAuthorization();
+// Live trace feed is operator-only — require the admin-scoped dashboard session cookie,
+// not the agent JWT that gets issued to every connected agent.
+app.MapHub<TraceHub>("/hubs/trace").RequireAuthorization(DashboardAuthPolicy.PolicyName);
 
 // Seed a dev agent so identity resolution succeeds during local testing.
 if (app.Environment.IsDevelopment())

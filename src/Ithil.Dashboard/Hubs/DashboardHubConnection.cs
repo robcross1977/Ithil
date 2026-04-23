@@ -21,7 +21,9 @@ public class DashboardHubConnection(
     /// </summary>
     public void Subscribe(Action<AgentTraceEvent> handler)
     {
-        var history = buffer.GetRecent(options.Value.BufferSize);
+        // GetRecent returns newest-first. Subscribers like TraceFeedService prepend with Insert(0),
+        // so replay oldest-first to preserve chronological order in the resulting list.
+        var history = buffer.GetRecent(options.Value.BufferSize).Reverse();
         foreach (var evt in history)
             handler(evt);
         subscriptionManager.Register(handler);

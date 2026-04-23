@@ -22,11 +22,12 @@ public partial class TraceFeed : ComponentBase, IDisposable
 
     protected override void OnInitialized() => Hub.Subscribe(OnTraceEvent);
 
-    private void OnTraceEvent(AgentTraceEvent traceEvent)
-    {
-        Feed.Add(traceEvent);
-        InvokeAsync(StateHasChanged);
-    }
+    private void OnTraceEvent(AgentTraceEvent traceEvent) =>
+        InvokeAsync(() =>
+        {
+            Feed.Add(traceEvent);
+            StateHasChanged();
+        });
 
     public void Dispose() => Hub.Unsubscribe(OnTraceEvent);
 }

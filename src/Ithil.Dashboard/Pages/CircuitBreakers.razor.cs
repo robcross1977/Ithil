@@ -16,11 +16,12 @@ public partial class CircuitBreakers : ComponentBase, IDisposable
 
     protected override void OnInitialized() => Hub.Subscribe(OnTraceEvent);
 
-    private void OnTraceEvent(AgentTraceEvent traceEvent)
-    {
-        Circuits.UpdateState(traceEvent);
-        InvokeAsync(StateHasChanged);
-    }
+    private void OnTraceEvent(AgentTraceEvent traceEvent) =>
+        InvokeAsync(() =>
+        {
+            Circuits.UpdateState(traceEvent);
+            StateHasChanged();
+        });
 
     public void Dispose() => Hub.Unsubscribe(OnTraceEvent);
 }

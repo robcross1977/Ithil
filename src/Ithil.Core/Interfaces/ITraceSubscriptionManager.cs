@@ -18,7 +18,7 @@ public interface ITraceSubscriptionManager
     void Unregister(Action<AgentTraceEvent> handler);
 
     /// <summary>
-    /// Invoked all registered callbacks with the given event.
+    /// Invokes all registered callbacks with the given event.
     /// </summary>
     void NotifyAll(AgentTraceEvent traceEvent);
 }

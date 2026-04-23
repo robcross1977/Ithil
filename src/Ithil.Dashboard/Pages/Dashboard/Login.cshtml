@@ -14,7 +14,7 @@
     }
     <form method="post">
         <label for="token">Admin JWT</label><br />
-        <input id="token" name="Token" type="text" size="80" /><br />
+        <input id="token" name="Token" type="password" size="80" autocomplete="off" spellcheck="false" /><br />
         <button type="submit">Sign in</button>
         @Html.AntiForgeryToken()
     </form>
