@@ -1,4 +1,4 @@
-namespace Ithil.Gateway.Tracing;
+namespace Ithil.Core;
 
 /// <summary>
 /// Configuration for the trace ring buffer.

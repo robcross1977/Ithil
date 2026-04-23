@@ -1,0 +1,20 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudText Typo="Typo.h6">Ithil Dashboard</MudText>
+    </MudAppBar>
+    <MudDrawer Open="true" Variant="@DrawerVariant.Persistent" Elevation="1">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>

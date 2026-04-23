@@ -18,7 +18,7 @@ public class BudgetEngineTests {
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)RedisValue.Null);
 
-        var result = await CreateEngine().IsWithinBudgetAsync("agent-01");
+        var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
 
         result.Should().BeTrue();
     }
@@ -28,7 +28,7 @@ public class BudgetEngineTests {
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)12400);
 
-        var result = await CreateEngine().IsWithinBudgetAsync("agent-01");
+        var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
 
         result.Should().BeTrue();
     }
@@ -38,7 +38,7 @@ public class BudgetEngineTests {
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)50000);
 
-        var result = await CreateEngine().IsWithinBudgetAsync("agent-01");
+        var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
 
         result.Should().BeFalse();
     }
@@ -48,7 +48,7 @@ public class BudgetEngineTests {
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)51000);
 
-        var result = await CreateEngine().IsWithinBudgetAsync("agent-01");
+        var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
 
         result.Should().BeFalse();
     }
@@ -58,7 +58,7 @@ public class BudgetEngineTests {
     {
         var expectedKey = BudgetKeyFactory.ForToday("agent-01");
 
-        await CreateEngine().RecordUsageAsync("agent-01", 312);
+        await CreateEngine().RecordUsageAsync("agent-01", 312, TestContext.Current.CancellationToken);
 
         await _redis.Received(1).StringIncrementAsync(expectedKey, 312);
     }
@@ -68,7 +68,7 @@ public class BudgetEngineTests {
     {
         var expectedKey = BudgetKeyFactory.ForToday("agent-01");
 
-        await CreateEngine().RecordUsageAsync("agent-01", 100);
+        await CreateEngine().RecordUsageAsync("agent-01", 100, TestContext.Current.CancellationToken);
 
         await _redis.Received(1).KeyExpireAsync(expectedKey, TimeSpan.FromDays(2));
     }
@@ -89,7 +89,7 @@ public class BudgetEngineTests {
         _redis.StringGetAsync(Arg.Any<RedisKey>())
             .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
 
-        var result = await CreateEngine().IsWithinBudgetAsync("agent-01");
+        var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
 
         result.Should().BeTrue();
     }

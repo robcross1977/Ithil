@@ -87,7 +87,7 @@ public class McpEndpointAuthTests
         await using var app = await BuildTestAppAsync();
         var client = app.GetTestClient();
 
-        var response = await client.PostAsync("/mcp", null);
+        var response = await client.PostAsync("/mcp", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -101,7 +101,7 @@ public class McpEndpointAuthTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", "invalid.token.value");
 
-        var response = await client.PostAsync("/mcp", null);
+        var response = await client.PostAsync("/mcp", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -116,7 +116,7 @@ public class McpEndpointAuthTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await client.PostAsync("/mcp", null);
+        var response = await client.PostAsync("/mcp", null, TestContext.Current.CancellationToken);
 
         // Auth passes — the SDK may return 4xx for a missing/invalid MCP body, but not 401/403.
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);

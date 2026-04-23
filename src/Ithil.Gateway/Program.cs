@@ -1,6 +1,7 @@
-using System.Text;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
+using Ithil.Dashboard;
+using Ithil.Dashboard.Auth;
 using Ithil.Gateway;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Management;
@@ -8,12 +9,14 @@ using Ithil.Gateway.Mcp;
 using Ithil.Gateway.Transforms;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddIthilServices(builder.Configuration);
 builder.Services.AddIthilManagement();
+builder.Services.AddIthilDashboard();
 builder
     .Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
@@ -64,7 +67,12 @@ app.Services.GetRequiredService<ITokenCounter>();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapHub<TraceHub>("/hubs/trace").RequireAuthorization();
+app.UseAntiforgery();
+app.UseStaticFiles();
+app.UseIthilDashboard();
+// Live trace feed is operator-only — require the admin-scoped dashboard session cookie,
+// not the agent JWT that gets issued to every connected agent.
+app.MapHub<TraceHub>("/hubs/trace").RequireAuthorization(DashboardAuthPolicy.PolicyName);
 
 // Seed a dev agent so identity resolution succeeds during local testing.
 if (app.Environment.IsDevelopment())
@@ -80,11 +88,21 @@ if (app.Environment.IsDevelopment())
         }
     );
 
+    // Guards the /dev/* token endpoints: even inside IsDevelopment(), refuse any caller that
+    // isn't on loopback. Stops accidental admin-token issuance if DOTNET_ENVIRONMENT leaks to
+    // a shared/staging host.
+    static bool IsLoopback(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress is { } ip &&
+        (System.Net.IPAddress.IsLoopback(ip) ||
+         ip.Equals(ctx.Connection.LocalIpAddress));
+
     // Temporary endpoint - generates a dev JWT for manual testing.
     app.MapGet(
         "/dev/token",
-        (IConfiguration config) =>
+        (HttpContext ctx, IConfiguration config) =>
         {
+            if (!IsLoopback(ctx))
+                return Results.NotFound();
             var jwt = config.GetSection("Ithil:Jwt");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
             var handler = new JsonWebTokenHandler();
@@ -92,6 +110,30 @@ if (app.Environment.IsDevelopment())
                 new SecurityTokenDescriptor
                 {
                     Claims = new Dictionary<string, object> { { "agent_id", "dev-agent-01" } },
+                    Expires = DateTime.UtcNow.AddHours(8),
+                    Issuer = jwt["Issuer"],
+                    Audience = jwt["Audience"],
+                    SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+                }
+            );
+            return Results.Ok(new { token });
+        }
+    );
+
+    // Generates a dashboard admin JWT for testing the /dashboard/login page.
+    app.MapGet(
+        "/dev/admin-token",
+        (HttpContext ctx, IConfiguration config) =>
+        {
+            if (!IsLoopback(ctx))
+                return Results.NotFound();
+            var jwt = config.GetSection("Ithil:Jwt");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
+            var handler = new JsonWebTokenHandler();
+            var token = handler.CreateToken(
+                new SecurityTokenDescriptor
+                {
+                    Claims = new Dictionary<string, object> { { "scope", "admin" } },
                     Expires = DateTime.UtcNow.AddHours(8),
                     Issuer = jwt["Issuer"],
                     Audience = jwt["Audience"],

@@ -2,6 +2,7 @@ using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
 using Microsoft.Extensions.Options;
+using Ithil.Core;
 
 namespace Ithil.Gateway.Tracing;
 

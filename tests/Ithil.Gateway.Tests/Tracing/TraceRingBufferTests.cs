@@ -2,6 +2,7 @@ using FluentAssertions;
 using Ithil.Core.Models;
 using Ithil.Gateway.Tracing;
 using Microsoft.Extensions.Options;
+using Ithil.Core;
 
 namespace Ithil.Gateway.Tests.Tracing;
 

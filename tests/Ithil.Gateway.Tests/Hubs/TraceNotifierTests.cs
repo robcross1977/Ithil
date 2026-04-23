@@ -12,13 +12,15 @@ public class TraceNotifierTests
     private readonly IHubContext<TraceHub> _hub = Substitute.For<IHubContext<TraceHub>>();
     private readonly IClientProxy _clientProxy = Substitute.For<IClientProxy>();
     private readonly ITraceBuffer _buffer = Substitute.For<ITraceBuffer>();
+    private readonly ITraceSubscriptionManager _subscriptionManager = Substitute.For<ITraceSubscriptionManager>();
 
     public TraceNotifierTests()
     {
         _hub.Clients.Group(Arg.Any<string>()).Returns(_clientProxy);
     }
 
-    private TraceNotifier CreateNotifier() => new(_hub, _buffer);
+   
+    private TraceNotifier CreateNotifier() => new(_hub, _buffer, _subscriptionManager);
 
     private static AgentTraceEvent MakeEvent(string agentId = "claude-prod-01") =>
         new()
@@ -33,7 +35,7 @@ public class TraceNotifierTests
     [Fact]
     public async Task NotifyAsync_SendsToAgentGroup()
     {
-        await CreateNotifier().NotifyAsync(MakeEvent());
+        await CreateNotifier().NotifyAsync(MakeEvent(), TestContext.Current.CancellationToken);
 
         _hub.Clients.Received().Group("agent:claude-prod-01");
     }
@@ -41,7 +43,7 @@ public class TraceNotifierTests
     [Fact]
     public async Task NotifyAsync_SendsToGlobalGroup()
     {
-        await CreateNotifier().NotifyAsync(MakeEvent());
+        await CreateNotifier().NotifyAsync(MakeEvent(), TestContext.Current.CancellationToken);
 
         _hub.Clients.Received().Group("dashboard-all");
     }
@@ -49,7 +51,7 @@ public class TraceNotifierTests
     [Fact]
     public async Task NotifyAsync_SendToBothGroups()
     {
-        await CreateNotifier().NotifyAsync(MakeEvent());
+        await CreateNotifier().NotifyAsync(MakeEvent(), TestContext.Current.CancellationToken);
 
         _hub.Clients.Received(2).Group(Arg.Any<string>());
         await _clientProxy
@@ -61,7 +63,7 @@ public class TraceNotifierTests
     public async Task NotifyAsync_WritesToBuffer()
     {
         var evt = MakeEvent();
-        await CreateNotifier().NotifyAsync(evt);
+        await CreateNotifier().NotifyAsync(evt, TestContext.Current.CancellationToken);
 
         _buffer.Received(1).Add(evt);
     }

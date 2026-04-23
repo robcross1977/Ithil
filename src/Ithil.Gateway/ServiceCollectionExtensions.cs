@@ -21,6 +21,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.ML.Tokenizers;
 using Polly;
 using StackExchange.Redis;
+using Ithil.Core;
 
 namespace Ithil.Gateway;
 
@@ -137,13 +138,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IToolAllowlistService, ToolAllowlistService>();
         services.AddScoped<ITraceIdFactory, DefaultTraceIdFactory>();
         services.AddSignalR();
-        var traceOptions = new Tracing.TraceOptions();
+        var traceOptions = new TraceOptions();
         configuration.GetSection("Ithil:Trace").Bind(traceOptions);
         if (traceOptions.BufferSize <= 0)
             throw new InvalidOperationException($"Ithil:Trace:BufferSize must be greater than 0; configured value: {traceOptions.BufferSize}.");
         services.AddSingleton(Options.Create(traceOptions));
         services.AddSingleton<ITraceBuffer, Tracing.TraceRingBuffer>();
         services.AddSingleton<ITraceNotifier, TraceNotifier>();
+        services.AddSingleton<ITraceSubscriptionManager, TraceSubscriptionManager>();
         services.AddSingleton<PrivacyFilterOptions>();
         services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
 

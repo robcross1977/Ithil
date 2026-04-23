@@ -21,15 +21,15 @@ public class ToolCallGovernancePipelineTests
     public ToolCallGovernancePipelineTests()
     {
         _traceIdFactory.Create().Returns("trace-001");
-        _budgetEngine.IsWithinBudgetAsync(Arg.Any<string>()).Returns(true);
-        _privacyFilter.ScrubAsync(Arg.Any<Stream>()).Returns("scrubbed response");
+        _budgetEngine.IsWithinBudgetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _privacyFilter.ScrubAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>()).Returns("scrubbed response");
         _tokenCounter.CountTokens(Arg.Any<string>()).Returns(42);
     }
 
     [Fact]
     public async Task ExecuteAsync_ThrowsInvalidOperationException_WhenBudgetExceeded()
     {
-        _budgetEngine.IsWithinBudgetAsync("agent-1").Returns(false);
+        _budgetEngine.IsWithinBudgetAsync("agent-1", Arg.Any<CancellationToken>()).Returns(false);
         var pipeline = CreatePipeline();
 
         var act = () => pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
@@ -41,7 +41,7 @@ public class ToolCallGovernancePipelineTests
     [Fact]
     public async Task ExecuteAsync_EmitsDeniedTraceAndAudit_WhenBudgetExceeded()
     {
-        _budgetEngine.IsWithinBudgetAsync("agent-1").Returns(false);
+        _budgetEngine.IsWithinBudgetAsync("agent-1", Arg.Any<CancellationToken>()).Returns(false);
         var pipeline = CreatePipeline();
 
         var act = () => pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
@@ -52,13 +52,11 @@ public class ToolCallGovernancePipelineTests
             Arg.Is<AgentTraceEvent>(e =>
                 e.AgentId == "agent-1" &&
                 e.ToolName == "GetInventory" &&
-                e.Status == "denied"));
-
-        await _auditLogger.Received(1).WriteAsync(
-            Arg.Is<AuditRecord>(r =>
+                e.Status == "denied"), Arg.Any<CancellationToken>());
+        await _auditLogger.Received(1).WriteAsync(Arg.Is<AuditRecord>(r =>
                 r.AgentId == "agent-1" &&
                 r.ToolName == "GetInventory" &&
-                r.Outcome == "denied"));
+                r.Outcome == "denied"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -66,14 +64,11 @@ public class ToolCallGovernancePipelineTests
     {
         var pipeline = CreatePipeline();
 
-        var result = await pipeline.ExecuteAsync(
-            "agent-1", "GetInventory",
-            () => Task.FromResult("raw response"),
-            default);
+        var result = await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("raw response"), TestContext.Current.CancellationToken);
 
         result.Should().Be("scrubbed response");
-        await _privacyFilter.Received(1).ScrubAsync(Arg.Any<Stream>());
-        await _budgetEngine.Received(1).RecordUsageAsync("agent-1", 42);
+        await _privacyFilter.Received(1).ScrubAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>());
+        await _budgetEngine.Received(1).RecordUsageAsync("agent-1", 42, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -81,19 +76,18 @@ public class ToolCallGovernancePipelineTests
     {
         var pipeline = CreatePipeline();
 
-        await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
+        await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), TestContext.Current.CancellationToken);
 
-        await _traceNotifier.Received(1).NotifyAsync(
-            Arg.Is<AgentTraceEvent>(e =>
+        await _traceNotifier.Received(1).NotifyAsync(Arg.Is<AgentTraceEvent>(e =>
                 e.AgentId == "agent-1" &&
                 e.ToolName == "GetInventory" &&
-                e.Status == "success"));
+                e.Status == "success"), Arg.Any<CancellationToken>());
 
         await _auditLogger.Received(1).WriteAsync(
             Arg.Is<AuditRecord>(r =>
                 r.AgentId == "agent-1" &&
                 r.ToolName == "GetInventory" &&
-                r.Outcome == "success"));
+                r.Outcome == "success"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -110,13 +104,13 @@ public class ToolCallGovernancePipelineTests
             Arg.Is<AgentTraceEvent>(e =>
                 e.AgentId == "agent-1" &&
                 e.ToolName == "GetInventory" &&
-                e.Status == "error"));
+                e.Status == "error"), Arg.Any<CancellationToken>());
 
         await _auditLogger.Received(1).WriteAsync(
             Arg.Is<AuditRecord>(r =>
                 r.AgentId == "agent-1" &&
                 r.Outcome == "error" &&
-                r.ErrorMessage == "connection refused"));
+                r.ErrorMessage == "connection refused"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -124,7 +118,6 @@ public class ToolCallGovernancePipelineTests
     {
         var pipeline = CreatePipeline();
 
-        // The original exception should propagate with its type intact, not wrapped.
         Func<Task<string>> failingInvoke = () => throw new InvalidDataException("downstream broke");
 
         var act = () => pipeline.ExecuteAsync("agent-1", "GetInventory", failingInvoke, default);
@@ -151,12 +144,11 @@ public class ToolCallGovernancePipelineTests
         var pipeline = CreatePipeline();
         var traceStatuses = new List<string>();
         _traceNotifier
-            .NotifyAsync(Arg.Do<AgentTraceEvent>(e => traceStatuses.Add(e.Status)))
+            .NotifyAsync(Arg.Do<AgentTraceEvent>(e => traceStatuses.Add(e.Status)), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), default);
+        await pipeline.ExecuteAsync("agent-1", "GetInventory", () => Task.FromResult("ok"), TestContext.Current.CancellationToken);
 
-        // "pending" must appear before "success" — it is emitted before the downstream invoke.
         traceStatuses.Should().Contain("pending");
         traceStatuses.Should().Contain("success");
         traceStatuses.IndexOf("pending").Should().BeLessThan(traceStatuses.IndexOf("success"));
@@ -167,14 +159,14 @@ public class ToolCallGovernancePipelineTests
     {
         var pipeline = CreatePipeline();
 
-        await pipeline.RecordCacheHitAsync("agent-1", "GetInventory");
+        await pipeline.RecordCacheHitAsync("agent-1", "GetInventory", TestContext.Current.CancellationToken);
 
         await _traceNotifier.Received(1).NotifyAsync(
             Arg.Is<AgentTraceEvent>(e =>
                 e.AgentId == "agent-1" &&
                 e.ToolName == "GetInventory" &&
                 e.Status == "cache-hit" &&
-                e.TokensUsed == 0));
+                e.TokensUsed == 0), Arg.Any<CancellationToken>());
 
         await _auditLogger.Received(1).WriteAsync(
             Arg.Is<AuditRecord>(r =>
@@ -182,7 +174,7 @@ public class ToolCallGovernancePipelineTests
                 r.ToolName == "GetInventory" &&
                 r.Outcome == "cache-hit" &&
                 r.CacheHit == true &&
-                r.TokensUsed == 0));
+                r.TokensUsed == 0), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -190,9 +182,9 @@ public class ToolCallGovernancePipelineTests
     {
         var pipeline = CreatePipeline();
 
-        await pipeline.RecordCacheHitAsync("agent-1", "GetInventory");
+        await pipeline.RecordCacheHitAsync("agent-1", "GetInventory", TestContext.Current.CancellationToken);
 
-        await _budgetEngine.DidNotReceive().IsWithinBudgetAsync(Arg.Any<string>());
-        await _budgetEngine.DidNotReceive().RecordUsageAsync(Arg.Any<string>(), Arg.Any<int>());
+        await _budgetEngine.DidNotReceive().IsWithinBudgetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _budgetEngine.DidNotReceive().RecordUsageAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 }

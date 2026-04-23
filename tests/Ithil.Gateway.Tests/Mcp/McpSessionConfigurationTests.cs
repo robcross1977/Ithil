@@ -76,7 +76,7 @@ public class McpSessionConfigurationTests
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
 
-        await McpSessionConfiguration.ConfigureSessionAsync(context, options, default);
+        await McpSessionConfiguration.ConfigureSessionAsync(context, options, TestContext.Current.CancellationToken);
 
         options.ToolCollection.Should().NotBeNull();
         options.ToolCollection!.Count.Should().Be(2);
@@ -96,7 +96,7 @@ public class McpSessionConfigurationTests
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
 
-        await McpSessionConfiguration.ConfigureSessionAsync(context, options, default);
+        await McpSessionConfiguration.ConfigureSessionAsync(context, options, TestContext.Current.CancellationToken);
 
         options.ToolCollection.Should().NotBeNull();
         options.ToolCollection!.Count.Should().Be(3);
@@ -116,7 +116,7 @@ public class McpSessionConfigurationTests
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
 
-        await McpSessionConfiguration.ConfigureSessionAsync(context, options, default);
+        await McpSessionConfiguration.ConfigureSessionAsync(context, options, TestContext.Current.CancellationToken);
 
         options.ToolCollection.Should().NotBeNull();
         options.ToolCollection!.Count.Should().Be(0);
@@ -138,7 +138,7 @@ public class McpSessionConfigurationTests
         var context = BuildContext(allowlistService, toolRegistry);
         var options = new McpServerOptions();
 
-        await McpSessionConfiguration.ConfigureSessionAsync(context, options, default);
+        await McpSessionConfiguration.ConfigureSessionAsync(context, options, TestContext.Current.CancellationToken);
 
         options.ToolCollection!.Count.Should().Be(1);
     }

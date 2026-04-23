@@ -60,14 +60,14 @@ public class CircuitBreakerPolicyFactoryTests
         await TriggerFailures(pipeline, 5);
 
         // Wait past the break duration so the circuit transitions to half-open
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Probe succeeds - circuit should close
-        var result = await pipeline.ExecuteAsync(_ => Success());
+        var result = await pipeline.ExecuteAsync(_ => Success(), TestContext.Current.CancellationToken);
         result.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Next call hits downstream normally (not BrokenCircuitException)
-        var result2 = await pipeline.ExecuteAsync(_ => Success());
+        var result2 = await pipeline.ExecuteAsync(_ => Success(), TestContext.Current.CancellationToken);
         result2.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -77,7 +77,7 @@ public class CircuitBreakerPolicyFactoryTests
         var pipeline = BuildPipeline();
         await TriggerFailures(pipeline, 5);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         var probeFail = async () => await pipeline.ExecuteAsync(_ => Failure());
         await probeFail.Should().ThrowAsync<HttpRequestException>();
@@ -94,7 +94,7 @@ public class CircuitBreakerPolicyFactoryTests
 
         await _notifier
             .Received(1)
-            .NotifyAsync(Arg.Is<AgentTraceEvent>(e => e.CircuitState == "open"));
+            .NotifyAsync(Arg.Is<AgentTraceEvent>(e => e.CircuitState == "open"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -103,12 +103,12 @@ public class CircuitBreakerPolicyFactoryTests
         var pipeline = BuildPipeline();
         await TriggerFailures(pipeline, 5);
 
-        await Task.Delay(500);
-        await pipeline.ExecuteAsync(_ => Success());
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        await pipeline.ExecuteAsync(_ => Success(), TestContext.Current.CancellationToken);
 
         await _notifier
             .Received(1)
-            .NotifyAsync(Arg.Is<AgentTraceEvent>(e => e.CircuitState == "closed"));
+            .NotifyAsync(Arg.Is<AgentTraceEvent>(e => e.CircuitState == "closed"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class CircuitBreakerPolicyFactoryTests
         var pipeline = BuildPipeline();
         await TriggerFailures(pipeline, 5);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Trigger the probe (half-open → one request allowed through)
         var act = async () => await pipeline.ExecuteAsync(_ => Failure());
@@ -126,7 +126,7 @@ public class CircuitBreakerPolicyFactoryTests
         await _notifier
             .Received(1)
             .NotifyAsync(Arg.Is<AgentTraceEvent>(e =>
-                e.CircuitState == "half-open" && e.Status == "circuit-half-open"));
+                e.CircuitState == "half-open" && e.Status == "circuit-half-open"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -135,9 +135,9 @@ public class CircuitBreakerPolicyFactoryTests
         var pipeline = BuildPipeline();
         await TriggerFailures(pipeline, 5);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
-        var act = async () => await pipeline.ExecuteAsync(_ => Failure());
+        var act = async () => await pipeline.ExecuteAsync(_ => Failure(), TestContext.Current.CancellationToken);
         await act.Should().ThrowAsync<HttpRequestException>();
 
         await _notifier
@@ -145,7 +145,7 @@ public class CircuitBreakerPolicyFactoryTests
             .NotifyAsync(Arg.Is<AgentTraceEvent>(e =>
                 e.CircuitState == "half-open" &&
                 e.AgentId == "agent-1" &&
-                e.ToolName == "GetStock"));
+                e.ToolName == "GetStock"), Arg.Any<CancellationToken>());
     }
 
     [Fact]

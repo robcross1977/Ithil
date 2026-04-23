@@ -43,7 +43,7 @@ public class ToolRegistryServiceTests
         FakeHttpMessageHandler handler = new(SampleSchemaJson);
         var service = MakeService(handler);
 
-        var tools = await service.GetToolsAsync();
+        var tools = await service.GetToolsAsync(TestContext.Current.CancellationToken);
 
         tools.Should().HaveCount(1);
         tools[0].Name.Should().Be("GetStock");
@@ -57,8 +57,8 @@ public class ToolRegistryServiceTests
         FakeHttpMessageHandler handler = new(SampleSchemaJson);
         var service = MakeService(handler);
 
-        await service.GetToolsAsync();
-        await service.GetToolsAsync();
+        await service.GetToolsAsync(TestContext.Current.CancellationToken);
+        await service.GetToolsAsync(TestContext.Current.CancellationToken);
 
         // Handler should only have been hit once — second call uses the in-memory cache.
         handler.CallCount.Should().Be(1);
@@ -70,7 +70,7 @@ public class ToolRegistryServiceTests
         FakeHttpMessageHandler handler = new(new HttpRequestException("connection refused"));
         var service = MakeService(handler);
 
-        var tools = await service.GetToolsAsync();
+        var tools = await service.GetToolsAsync(TestContext.Current.CancellationToken);
 
         tools.Should().BeEmpty();
     }
