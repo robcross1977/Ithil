@@ -24,6 +24,12 @@ public class EmbeddingService : IEmbeddingService, IDisposable
     // The ## prefix means "continuation of previous word" — not a new token.
     private readonly BertTokenizer _tokenizer;
 
+    // Set true once both the ONNX session and tokenizer have loaded successfully.
+    // If either throws during construction, DI fails and this instance never exists —
+    // so in practice this is always true for a live instance, but keeping it explicit
+    // documents the contract for IEmbeddingService.IsReady.
+    private readonly bool _isReady;
+
     // all-MiniLM-L6-v2 was trained with sequences up to 256 tokens.
     // Longer inputs are truncated — the beginning is kept, the end is dropped.
     private const int MaxTokens = 256;
@@ -36,7 +42,11 @@ public class EmbeddingService : IEmbeddingService, IDisposable
         _session = new InferenceSession(options.ModelPath);
         // doLowerCase: true normalises casing so "Widget" and "widget" embed identically.
         _tokenizer = BertTokenizer.Create(options.VocabPath, new BertOptions { LowerCaseBeforeTokenization = true });
+        _isReady = true;
     }
+
+    /// <inheritdoc/>
+    public bool IsReady => _isReady;
 
     /// <summary>
     /// Converts text into a unit-length float[384] vector representing its semantic meaning.

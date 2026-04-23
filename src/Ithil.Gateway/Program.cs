@@ -54,7 +54,19 @@ builder
             await pipeline.TransformAsync(agentId, traceId, toolName, body, latencyMs);
         });
     });
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<Ithil.Gateway.Health.EmbeddingModelHealthCheck>(
+        "embedding-model", tags: ["ready"]);
+
+// Only register the Redis check when we're actually talking to Redis.
+// Dev setups with UseInMemory=true have no Redis running, so including the
+// check would permanently fail /health/ready and make the probe useless.
+if (!builder.Configuration.GetValue<bool>("Ithil:AgentStore:UseInMemory"))
+{
+    builder.Services.AddHealthChecks()
+        .AddCheck<Ithil.Gateway.Health.RedisHealthCheck>(
+            "redis", tags: ["ready"]);
+}
 builder.Services.AddMcpServer()
     .WithHttpTransport(options =>
         options.ConfigureSessionOptions = McpSessionConfiguration.ConfigureSessionAsync);
@@ -145,7 +157,19 @@ if (app.Environment.IsDevelopment())
     );
 }
 
-app.MapHealthChecks("/health");
+// Liveness: is the process alive and not deadlocked? No dependency checks —
+// a Redis outage must not cause Kubernetes to restart the pod.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false,
+});
+
+// Readiness: runs every check tagged "ready". 503 diverts traffic but leaves
+// the pod running so it can recover when its dependencies come back.
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
 app.MapManagementEndpoints();
 app.MapMcp("/mcp").RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
 app.MapReverseProxy().RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
