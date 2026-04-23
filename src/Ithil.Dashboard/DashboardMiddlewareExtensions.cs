@@ -52,8 +52,13 @@ public static class DashboardMiddlewareExtensions
     public static WebApplication UseIthilDashboard(this WebApplication app)
     {
         app.MapRazorPages();
+        // Gate every Blazor dashboard route at the endpoint level. The Blazor router uses
+        // RouteView rather than AuthorizeRouteView, so page-level [Authorize] attributes
+        // would not otherwise be honored. Unauthenticated requests get redirected to the
+        // cookie scheme's login path (/dashboard/login, served by MapRazorPages above).
         app.MapRazorComponents<DashboardApp>()
-            .AddInteractiveServerRenderMode();
+            .AddInteractiveServerRenderMode()
+            .RequireAuthorization(DashboardAuthPolicy.PolicyName);
 
         return app;
     }
