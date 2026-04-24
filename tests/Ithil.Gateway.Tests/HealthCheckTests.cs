@@ -13,7 +13,7 @@ public class HealthCheckTests
     [Fact]
     public async Task HealthEndpoint_LiveReturns200_WithNoAuth()
     {
-        var app = await StartHostAsync(configure: null);
+        await using var app = await StartHostAsync(configure: null);
 
         var response = await app.GetTestClient().GetAsync("/health/live", TestContext.Current.CancellationToken);
 
@@ -23,7 +23,7 @@ public class HealthCheckTests
     [Fact]
     public async Task HealthEndpoint_ReadyReturns200_WhenAllReadyChecksPass()
     {
-        var app = await StartHostAsync(hc => hc
+        await using var app = await StartHostAsync(hc => hc
             .AddCheck("probe", () => HealthCheckResult.Healthy(), tags: ["ready"]));
 
         var response = await app.GetTestClient().GetAsync("/health/ready", TestContext.Current.CancellationToken);
@@ -34,7 +34,7 @@ public class HealthCheckTests
     [Fact]
     public async Task HealthEndpoint_ReadyReturns503_WhenAReadyCheckFails()
     {
-        var app = await StartHostAsync(hc => hc
+        await using var app = await StartHostAsync(hc => hc
             .AddCheck("probe", () => HealthCheckResult.Unhealthy("nope"), tags: ["ready"]));
 
         var response = await app.GetTestClient().GetAsync("/health/ready", TestContext.Current.CancellationToken);
@@ -47,7 +47,7 @@ public class HealthCheckTests
     {
         // Critical safety property: a failing readiness check must NOT fail liveness,
         // or Kubernetes will restart pods during transient dependency outages.
-        var app = await StartHostAsync(hc => hc
+        await using var app = await StartHostAsync(hc => hc
             .AddCheck("probe", () => HealthCheckResult.Unhealthy("redis down"), tags: ["ready"]));
 
         var response = await app.GetTestClient().GetAsync("/health/live", TestContext.Current.CancellationToken);

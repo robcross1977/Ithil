@@ -54,19 +54,15 @@ builder
             await pipeline.TransformAsync(agentId, traceId, toolName, body, latencyMs);
         });
     });
+// Redis is always a required dependency: IConnectionMultiplexer, BudgetEngine, and
+// SemanticCacheService are unconditionally Redis-backed regardless of UseInMemory.
+// UseInMemory only swaps the agent/key *store* to in-memory — Redis still has to be
+// reachable for budget enforcement and semantic caching to function.
 builder.Services.AddHealthChecks()
     .AddCheck<Ithil.Gateway.Health.EmbeddingModelHealthCheck>(
-        "embedding-model", tags: ["ready"]);
-
-// Only register the Redis check when we're actually talking to Redis.
-// Dev setups with UseInMemory=true have no Redis running, so including the
-// check would permanently fail /health/ready and make the probe useless.
-if (!builder.Configuration.GetValue<bool>("Ithil:AgentStore:UseInMemory"))
-{
-    builder.Services.AddHealthChecks()
-        .AddCheck<Ithil.Gateway.Health.RedisHealthCheck>(
-            "redis", tags: ["ready"]);
-}
+        "embedding-model", tags: ["ready"])
+    .AddCheck<Ithil.Gateway.Health.RedisHealthCheck>(
+        "redis", tags: ["ready"]);
 builder.Services.AddMcpServer()
     .WithHttpTransport(options =>
         options.ConfigureSessionOptions = McpSessionConfiguration.ConfigureSessionAsync);
