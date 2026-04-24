@@ -420,7 +420,7 @@ Complete `appsettings.json` with all available options:
 | Redis Stack      | Required for semantic cache (vector search) and budget engine. Plain Redis is **not** sufficient for the cache — use `redis/redis-stack` |
 | ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — place in `models/` relative to the gateway. No internet access required at runtime               |
 
-**Without Redis:** Set `UseInMemory: true` in dev environments. Budget and cache use in-memory fallbacks. Not suitable for production or multi-instance deployments.
+**`UseInMemory: true`:** Swaps the agent config and API key repositories to in-memory stores so you don't need Redis persistence for those during local development. Redis is still required for the budget engine and semantic cache — budget enforcement and vector search have no in-memory fallback. A local Redis Stack instance (e.g. via Docker) is the minimum dev setup.
 
 ---
 
@@ -457,7 +457,10 @@ volumes:
   redis-data:
 ```
 
-**Health check:** `GET /health` — returns `200` with no auth required. Use this for Kubernetes `readinessProbe` and `livenessProbe`.
+**Health checks** (no auth required):
+- `GET /health/live` — liveness probe. Returns `200` if the process is responding. Never checks external dependencies — a Redis outage must not restart the pod.
+- `GET /health/ready` — readiness probe. Returns `200` only when Redis is reachable and the ONNX embedding model loaded successfully. Returns `503` to divert traffic until dependencies recover.
+- `GET /health` — backward-compatible alias for `/health/ready`.
 
 > **Note:** For multi-instance gateway deployments, a Redis backplane is required for the SignalR trace hub. Configure via `AddStackExchangeRedisHubProtocol()`.
 

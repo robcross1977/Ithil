@@ -54,7 +54,15 @@ builder
             await pipeline.TransformAsync(agentId, traceId, toolName, body, latencyMs);
         });
     });
-builder.Services.AddHealthChecks();
+// Redis is always a required dependency: IConnectionMultiplexer, BudgetEngine, and
+// SemanticCacheService are unconditionally Redis-backed regardless of UseInMemory.
+// UseInMemory only swaps the agent/key *store* to in-memory — Redis still has to be
+// reachable for budget enforcement and semantic caching to function.
+builder.Services.AddHealthChecks()
+    .AddCheck<Ithil.Gateway.Health.EmbeddingModelHealthCheck>(
+        "embedding-model", tags: ["ready"])
+    .AddCheck<Ithil.Gateway.Health.RedisHealthCheck>(
+        "redis", tags: ["ready"]);
 builder.Services.AddMcpServer()
     .WithHttpTransport(options =>
         options.ConfigureSessionOptions = McpSessionConfiguration.ConfigureSessionAsync);
@@ -63,6 +71,10 @@ var app = builder.Build();
 
 // Resolve eagerly so the tiktoken download happens at startup, not on the first live request.
 app.Services.GetRequiredService<ITokenCounter>();
+// Resolve eagerly so the ONNX model loads at startup. The readiness probe reads
+// IEmbeddingService.IsReady, which is only true once the constructor completes —
+// eager resolution ensures the probe reflects real startup state.
+app.Services.GetRequiredService<IEmbeddingService>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
@@ -145,7 +157,26 @@ if (app.Environment.IsDevelopment())
     );
 }
 
-app.MapHealthChecks("/health");
+// Liveness: is the process alive and not deadlocked? No dependency checks —
+// a Redis outage must not cause Kubernetes to restart the pod.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false,
+});
+
+// Readiness: runs every check tagged "ready". 503 diverts traffic but leaves
+// the pod running so it can recover when its dependencies come back.
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
+
+// Backward-compatible alias for scripts and docs that still probe GET /health.
+// Behaves identically to /health/ready.
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
 app.MapManagementEndpoints();
 app.MapMcp("/mcp").RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
 app.MapReverseProxy().RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);

@@ -284,14 +284,14 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
 ## Acceptance Criteria
 
 ### Health Checks
-- [ ] `GET /health/live` returns 200 when the process is running, regardless of Redis state
-- [ ] `GET /health/ready` returns 200 only when Redis is reachable and the ONNX model is loaded
-- [ ] `GET /health/ready` returns 503 when Redis is unavailable (only when `UseInMemory` is false)
-- [ ] `GET /health/ready` does not include the Redis check when `UseInMemory` is true
-- [ ] `GET /health/ready` returns 503 when the embedding model failed to load
-- [ ] `IEmbeddingService` has an `IsReady` property
-- [ ] Kubernetes liveness probe can be pointed at `/health/live`
-- [ ] Kubernetes readiness probe can be pointed at `/health/ready`
+- [x] `GET /health/live` returns 200 when the process is running, regardless of Redis state
+- [x] `GET /health/ready` returns 200 only when Redis is reachable and the ONNX model loaded successfully at startup
+- [x] `GET /health/ready` returns 503 when Redis is unavailable
+- [x] `GET /health/ready` includes the Redis readiness check regardless of `UseInMemory` (Redis is always required for budget enforcement and semantic caching)
+- [x] Application startup fails (and Kubernetes restarts the pod) if the embedding model cannot be loaded — `IEmbeddingService` is eagerly resolved so a bad model path is caught at startup, not at request time
+- [x] `IEmbeddingService` has an `IsReady` property
+- [x] Kubernetes liveness probe can be pointed at `/health/live`
+- [x] Kubernetes readiness probe can be pointed at `/health/ready`
 
 ### Graceful Shutdown
 - [ ] Shutdown timeout is configurable via `options.Shutdown.TimeoutSeconds` (default: 25)
