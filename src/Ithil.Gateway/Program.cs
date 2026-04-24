@@ -71,6 +71,10 @@ var app = builder.Build();
 
 // Resolve eagerly so the tiktoken download happens at startup, not on the first live request.
 app.Services.GetRequiredService<ITokenCounter>();
+// Resolve eagerly so the ONNX model loads at startup. The readiness probe reads
+// IEmbeddingService.IsReady, which is only true once the constructor completes —
+// eager resolution ensures the probe reflects real startup state.
+app.Services.GetRequiredService<IEmbeddingService>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

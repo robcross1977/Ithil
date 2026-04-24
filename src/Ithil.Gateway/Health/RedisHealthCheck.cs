@@ -4,11 +4,11 @@ using StackExchange.Redis;
 namespace Ithil.Gateway.Health;
 
 /// <summary>
-/// Readiness check: pings Redis to confirm the gateway's shared-state backend
-/// is reachable. A failure here means budget enforcement, semantic cache, and
-/// agent identity lookups cannot function — traffic should be diverted until
-/// Redis recovers. Not used as a liveness check: a transient Redis outage
-/// must not cause Kubernetes to restart the pod.
+/// Readiness check: pings Redis to confirm the gateway's Redis-backed shared
+/// state is reachable. A failure here means Redis-dependent features such as
+/// budget enforcement and semantic caching cannot function — traffic should be
+/// diverted until Redis recovers. Not used as a liveness check: a transient
+/// Redis outage must not cause Kubernetes to restart the pod.
 /// </summary>
 public class RedisHealthCheck(IConnectionMultiplexer redis) : IHealthCheck
 {
@@ -18,7 +18,7 @@ public class RedisHealthCheck(IConnectionMultiplexer redis) : IHealthCheck
     {
         try
         {
-            await redis.GetDatabase().PingAsync();
+            await redis.GetDatabase().PingAsync(CommandFlags.None);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex)
