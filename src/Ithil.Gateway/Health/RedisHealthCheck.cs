@@ -21,6 +21,11 @@ public class RedisHealthCheck(IConnectionMultiplexer redis) : IHealthCheck
             await redis.GetDatabase().PingAsync(CommandFlags.None);
             return HealthCheckResult.Healthy();
         }
+        catch (OperationCanceledException)
+        {
+            // Probe timed out or host is shutting down — not a Redis failure.
+            throw;
+        }
         catch (Exception ex)
         {
             return HealthCheckResult.Unhealthy(

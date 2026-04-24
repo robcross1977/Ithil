@@ -55,8 +55,30 @@ public class HealthCheckTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // Spins up a minimal host that mirrors the real /health/live and /health/ready
-    // mappings from Program.cs. The caller supplies the readiness checks under test.
+    [Fact]
+    public async Task HealthAlias_Returns200_WhenAllReadyChecksPass()
+    {
+        await using var app = await StartHostAsync(hc => hc
+            .AddCheck("probe", () => HealthCheckResult.Healthy(), tags: ["ready"]));
+
+        var response = await app.GetTestClient().GetAsync("/health", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task HealthAlias_Returns503_WhenAReadyCheckFails()
+    {
+        await using var app = await StartHostAsync(hc => hc
+            .AddCheck("probe", () => HealthCheckResult.Unhealthy("nope"), tags: ["ready"]));
+
+        var response = await app.GetTestClient().GetAsync("/health", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+    }
+
+    // Spins up a minimal host that mirrors the real endpoint mappings from Program.cs.
+    // The caller supplies the readiness checks under test.
     private static async Task<WebApplication> StartHostAsync(
         Action<IHealthChecksBuilder>? configure)
     {
@@ -72,6 +94,10 @@ public class HealthCheckTests
             Predicate = _ => false,
         });
         app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready"),
+        });
+        app.MapHealthChecks("/health", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains("ready"),
         });

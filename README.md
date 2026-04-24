@@ -420,7 +420,7 @@ Complete `appsettings.json` with all available options:
 | Redis Stack      | Required for semantic cache (vector search) and budget engine. Plain Redis is **not** sufficient for the cache — use `redis/redis-stack` |
 | ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — place in `models/` relative to the gateway. No internet access required at runtime               |
 
-**Without Redis:** Set `UseInMemory: true` in dev environments. Budget and cache use in-memory fallbacks. Not suitable for production or multi-instance deployments.
+**`UseInMemory: true`:** Swaps the agent config and API key repositories to in-memory stores so you don't need Redis persistence for those during local development. Redis is still required for the budget engine and semantic cache — budget enforcement and vector search have no in-memory fallback. A local Redis Stack instance (e.g. via Docker) is the minimum dev setup.
 
 ---
 
