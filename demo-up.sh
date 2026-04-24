@@ -55,7 +55,7 @@ echo $! > "$PID_DIR/gateway.pid"
 
 echo "-> Waiting for Gateway (this includes build time)..."
 ATTEMPTS=0
-until curl -sf "$GATEWAY_URL/health" > /dev/null 2>&1; do
+until curl -sf "$GATEWAY_URL/health/live" > /dev/null 2>&1; do
     ATTEMPTS=$((ATTEMPTS + 1))
     if [ "$ATTEMPTS" -ge 45 ]; then
         echo "   Gateway did not start after 90s. Check .demo-logs/gateway.log"

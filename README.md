@@ -457,7 +457,10 @@ volumes:
   redis-data:
 ```
 
-**Health check:** `GET /health` — returns `200` with no auth required. Use this for Kubernetes `readinessProbe` and `livenessProbe`.
+**Health checks** (no auth required):
+- `GET /health/live` — liveness probe. Returns `200` if the process is responding. Never checks external dependencies — a Redis outage must not restart the pod.
+- `GET /health/ready` — readiness probe. Returns `200` only when Redis is reachable and the ONNX embedding model loaded successfully. Returns `503` to divert traffic until dependencies recover.
+- `GET /health` — backward-compatible alias for `/health/ready`.
 
 > **Note:** For multi-instance gateway deployments, a Redis backplane is required for the SignalR trace hub. Configure via `AddStackExchangeRedisHubProtocol()`.
 

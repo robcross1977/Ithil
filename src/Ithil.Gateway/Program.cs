@@ -170,6 +170,13 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 {
     Predicate = check => check.Tags.Contains("ready"),
 });
+
+// Backward-compatible alias for scripts and docs that still probe GET /health.
+// Behaves identically to /health/ready.
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
 app.MapManagementEndpoints();
 app.MapMcp("/mcp").RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
 app.MapReverseProxy().RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
