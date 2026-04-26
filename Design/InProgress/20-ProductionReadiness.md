@@ -294,9 +294,9 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
 - [x] Kubernetes readiness probe can be pointed at `/health/ready`
 
 ### Graceful Shutdown
-- [ ] Shutdown timeout is configurable via `options.Shutdown.TimeoutSeconds` (default: 25)
-- [ ] In-flight requests complete before the process exits within the shutdown window
-- [ ] `AuditBackgroundWorker` respects the cancellation token and flushes remaining records
+- [x] Shutdown timeout is configurable via `Ithil:Shutdown:TimeoutSeconds` (default: 25)
+- [x] In-flight requests complete before the process exits within the shutdown window
+- [x] `AuditBackgroundWorker` respects the cancellation token and flushes remaining records
 - [ ] Deployment guide documents the relationship between `.NET ShutdownTimeout` and
       Kubernetes `terminationGracePeriodSeconds`
 
