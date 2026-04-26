@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Management.Audit;
@@ -29,9 +28,9 @@ public class AuditBackgroundWorkerTests
         var channel = Channel.CreateUnbounded<AuditRecord>();
         var sink = Substitute.For<IAuditSink>();
 
-        await channel.Writer.WriteAsync(BuildRecord("r1"));
-        await channel.Writer.WriteAsync(BuildRecord("r2"));
-        await channel.Writer.WriteAsync(BuildRecord("r3"));
+        await channel.Writer.WriteAsync(BuildRecord("r1"), TestContext.Current.CancellationToken);
+        await channel.Writer.WriteAsync(BuildRecord("r2"), TestContext.Current.CancellationToken);
+        await channel.Writer.WriteAsync(BuildRecord("r3"), TestContext.Current.CancellationToken);
 
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();

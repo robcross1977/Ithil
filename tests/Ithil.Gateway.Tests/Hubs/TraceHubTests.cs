@@ -18,9 +18,11 @@ public class TraceHubTests
     private TraceHub CreateHub()
     {
         _buffer.GetRecent(Arg.Any<int>()).Returns(Seq<AgentTraceEvent>.Empty);
-        var hub = new TraceHub(_buffer, Options.Create(new TraceOptions()));
-        hub.Groups = _groups;
-        hub.Context = _context;
+        var hub = new TraceHub(_buffer, Microsoft.Extensions.Options.Options.Create(new TraceOptions()))
+        {
+            Groups = _groups,
+            Context = _context
+        };
         return hub;
     }
 
