@@ -1,3 +1,4 @@
+using Ithil.Core.Enums;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
@@ -11,13 +12,17 @@ namespace Ithil.Cache;
 /// <summary>
 /// Redis-backed semantic cache. Matches tool calls by meaning rather than exact parameters.
 /// Uses vector embeddings and cosine similarity to find cache hits.
-/// Fails open — any error (Redis down, model unavailable) is treated as a cache miss.
+/// Redis failures are handled according to the configured <see cref="SemanticCacheOptions.FailurePolicy"/>.
+/// Non-Redis errors (model unavailable, parse failures) are always treated as cache misses.
 /// </summary>
-public class SemanticCacheService : ISemanticCache
+public class SemanticCacheService(
+    IEmbeddingService embedder,
+    IDatabase redis,
+    SemanticCacheOptions options) : ISemanticCache
 {
-    private readonly IEmbeddingService _embedder;
-    private readonly IDatabase _redis;
-    private readonly SemanticCacheOptions _options;
+    private readonly IEmbeddingService _embedder = embedder;
+    private readonly IDatabase _redis = redis;
+    private readonly SemanticCacheOptions _options = options;
 
     // Index creation is idempotent but we only need to attempt it once per instance.
     private bool _indexCreated;
@@ -28,16 +33,6 @@ public class SemanticCacheService : ISemanticCache
     private const string IndexName = "ithil-cache-idx";
     private const string KeyPrefix = "cache:";
     private const int EmbeddingDims = 384;
-
-    public SemanticCacheService(
-        IEmbeddingService embedder,
-        IDatabase redis,
-        SemanticCacheOptions options)
-    {
-        _embedder = embedder;
-        _redis = redis;
-        _options = options;
-    }
 
     /// <summary>
     /// Looks up a semantically similar cached response.
@@ -68,9 +63,15 @@ public class SemanticCacheService : ISemanticCache
 
             return ParseSearchResult(result);
         }
-        catch (Exception)
+        catch (RedisException) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
         {
-            // Fail open — Redis down, model error, parse failure all become a cache miss.
+            // Redis unavailable, FailOpen — treat as a cache miss and let the request proceed.
+            return Option<CacheResult>.None;
+        }
+        catch (Exception ex) when (ex is not RedisException)
+        {
+            // Non-Redis errors (model unavailable, parse failure) are always cache misses
+            // regardless of policy — these are not Redis availability events.
             return Option<CacheResult>.None;
         }
     }

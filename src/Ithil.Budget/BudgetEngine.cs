@@ -1,3 +1,4 @@
+using Ithil.Core.Enums;
 using Ithil.Core.Interfaces;
 using LanguageExt;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,9 @@ namespace Ithil.Budget;
 /// <summary>
 /// Redis-backed implementation of IBudgetEngine.
 /// Tracks per-agent daily token usage and enforces configurable limits.
-/// Fails open - if Redis is unavailable, all budget checks return true.
+/// Fail-open by default — if Redis is unavailable, budget checks return true.
+/// Set <see cref="BudgetEngineOptions.FailurePolicy"/> to <see cref="RedisFailurePolicy.FailClosed"/>
+/// to reject requests instead.
 /// </summary>
 public class BudgetEngine(
     IDatabase redis,
@@ -21,7 +24,7 @@ public class BudgetEngine(
 
     /// <summary>
     /// Returns true if the agent's token usage today is below the daily limit.
-    /// Returns true if Redis is unavailable (fail-open policy).
+    /// When Redis is unavailable: returns true if FailOpen, throws if FailClosed.
     /// </summary>
     public async Task<bool> IsWithinBudgetAsync(string agentId, CancellationToken cancellationToken = default)
     {
@@ -63,7 +66,7 @@ public class BudgetEngine(
     }
 
     // Reads usage from Redis and wraps it in Option<int>.
-    // Returns None if the key is absent or Redis throws (fail-open).
+    // Returns None on a miss. On Redis failure: returns None (FailOpen) or throws (FailClosed).
     private async Task<Option<int>> TryGetUsageAsync(string agentId)
     {
         try
@@ -72,7 +75,7 @@ public class BudgetEngine(
             var value = await _redis.StringGetAsync(key);
             return value.IsNull ? Option<int>.None : Option<int>.Some((int)value);
         }
-        catch(RedisException ex)
+        catch (RedisException ex) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
         {
             _logger.LogWarning(ex, "Redis unavailable for agent {AgentId}; failing open", agentId);
             return Option<int>.None;

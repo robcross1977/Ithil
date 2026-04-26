@@ -70,15 +70,18 @@ public static class ServiceCollectionExtensions
             )
         );
         services.AddScoped(sp => sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());     
-        services.AddSingleton(
-            new BudgetEngineOptions
-            {
-                DefaultDailyTokenLimit = configuration.GetValue(
-                    "Ithil:Budget:DefaultDailyTokenLimit",
-                    100_000
-                ),
-            }
-        );
+        var budgetEngineOptions = new BudgetEngineOptions
+        {
+            DefaultDailyTokenLimit = configuration.GetValue(
+                "Ithil:Budget:DefaultDailyTokenLimit",
+                100_000
+            ),
+            FailurePolicy = configuration.GetValue(
+                "Ithil:Budget:FailurePolicy",
+                Ithil.Core.Enums.RedisFailurePolicy.FailOpen
+            ),
+        };
+        services.AddSingleton(budgetEngineOptions);
         services.AddSingleton<ITokenCounter>(_ =>
         {
             using var http = new HttpClient();
@@ -91,15 +94,18 @@ public static class ServiceCollectionExtensions
         });
         services.AddScoped<IBudgetEngine, BudgetEngine>();
 
-        services.AddSingleton(
-            new SemanticCacheOptions
-            {
-                ModelPath =
-                    configuration["Ithil:SemanticCache:ModelPath"]
-                    ?? "models/all-MiniLM-L6-v2.onnx",
-                VocabPath = configuration["Ithil:SemanticCache:VocabPath"] ?? "models/vocab.txt",
-            }
-        );
+        var cacheOptions = new SemanticCacheOptions
+        {
+            ModelPath =
+                configuration["Ithil:SemanticCache:ModelPath"]
+                ?? "models/all-MiniLM-L6-v2.onnx",
+            VocabPath = configuration["Ithil:SemanticCache:VocabPath"] ?? "models/vocab.txt",
+            FailurePolicy = configuration.GetValue(
+                "Ithil:SemanticCache:FailurePolicy",
+                Ithil.Core.Enums.RedisFailurePolicy.FailOpen
+            ),
+        };
+        services.AddSingleton(cacheOptions);
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddScoped<ISemanticCache, SemanticCacheService>();
 
@@ -159,6 +165,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(shutdownOptions);
         services.Configure<HostOptions>(hostOptions =>
             hostOptions.ShutdownTimeout = TimeSpan.FromSeconds(shutdownOptions.TimeoutSeconds));
+
+        var failOpenComponents = new List<string>();
+        if (budgetEngineOptions.FailurePolicy == Ithil.Core.Enums.RedisFailurePolicy.FailOpen)
+            failOpenComponents.Add("budget enforcement (Ithil:Budget:FailurePolicy)");
+        if (cacheOptions.FailurePolicy == Ithil.Core.Enums.RedisFailurePolicy.FailOpen)
+            failOpenComponents.Add("semantic caching (Ithil:SemanticCache:FailurePolicy)");
+        if (failOpenComponents.Count > 0)
+            Console.WriteLine(
+                $"[Ithil] WARNING: The following governance components will be bypassed if Redis " +
+                $"becomes unavailable (FailOpen): {string.Join(", ", failOpenComponents)}. " +
+                $"Set these to FailClosed to reject requests instead.");
 
         return services;
     }

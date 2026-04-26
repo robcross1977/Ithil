@@ -301,12 +301,12 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
       Kubernetes `terminationGracePeriodSeconds`
 
 ### Redis Failure Policy
-- [ ] `RedisFailurePolicy` enum exists with `FailOpen` and `FailClosed` values
-- [ ] Default is `FailOpen` — existing behaviour unchanged
-- [ ] `FailClosed` causes `BudgetEngine.IsWithinBudgetAsync` to return `false` when Redis is unavailable
-- [ ] `FailClosed` causes `SemanticCacheService.TryGetAsync` to propagate the failure rather than return `None`
-- [ ] A startup warning is logged when `FailOpen` is configured
-- [ ] Cache write failures are non-fatal under both policies
+- [x] `RedisFailurePolicy` enum exists with `FailOpen` and `FailClosed` values
+- [x] Default is `FailOpen` — existing behaviour unchanged
+- [x] `FailClosed` causes `BudgetEngine.IsWithinBudgetAsync` to throw when Redis is unavailable, which the pipeline surfaces as 503
+- [x] `FailClosed` causes `SemanticCacheService.TryGetAsync` to propagate the failure rather than return `None`
+- [x] A startup warning is printed when either service is configured `FailOpen`
+- [x] Cache write failures are non-fatal under both policies
 
 ### Configuration Reference
 - [x] `docs/CONFIGURATION.md` exists and covers every option listed in the table above

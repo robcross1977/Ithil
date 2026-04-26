@@ -1,0 +1,11 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/node_modules
+**/.demo-pids
+**/.demo-logs
+tests/
+*.md
+.gitignore
+.dockerignore
