@@ -294,10 +294,10 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
 - [x] Kubernetes readiness probe can be pointed at `/health/ready`
 
 ### Graceful Shutdown
-- [ ] Shutdown timeout is configurable via `options.Shutdown.TimeoutSeconds` (default: 25)
-- [ ] In-flight requests complete before the process exits within the shutdown window
-- [ ] `AuditBackgroundWorker` respects the cancellation token and flushes remaining records
-- [ ] Deployment guide documents the relationship between `.NET ShutdownTimeout` and
+- [x] Shutdown timeout is configurable via `Ithil:Shutdown:TimeoutSeconds` (default: 25)
+- [x] In-flight requests complete before the process exits within the shutdown window
+- [x] `AuditBackgroundWorker` respects the cancellation token and flushes remaining records
+- [x] Deployment guide documents the relationship between `.NET ShutdownTimeout` and
       Kubernetes `terminationGracePeriodSeconds`
 
 ### Redis Failure Policy
@@ -309,8 +309,8 @@ option is added, `docs/CONFIGURATION.md` must be updated in the same PR.**
 - [ ] Cache write failures are non-fatal under both policies
 
 ### Configuration Reference
-- [ ] `docs/CONFIGURATION.md` exists and covers every option listed in the table above
-- [ ] Each entry has: config key, type, default, required/optional, description
+- [x] `docs/CONFIGURATION.md` exists and covers every option listed in the table above
+- [x] Each entry has: config key, type, default, required/optional, description
 - [ ] `docs/DEPLOYMENT.md` exists and covers: Kubernetes probe configuration, shutdown timing, Redis persistence tiers, and Redis failure policy
 - [ ] A rule is added to `CLAUDE.md` requiring both docs to be updated when new options or deployment concerns are added
 

@@ -1,27 +1,27 @@
-using System.Text;
-using System.Threading.Channels;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
 using Ithil.Budget;
 using Ithil.Cache;
+using Ithil.Core;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Identity;
 using Ithil.Gateway.Management;
-using Ithil.Management.Services;
+using Ithil.Gateway.Options;
 using Ithil.Gateway.Stubs;
 using Ithil.Gateway.Transforms;
 using Ithil.Management.Audit;
 using Ithil.Management.Audit.Sinks;
 using Ithil.Management.Repositories;
+using Ithil.Management.Services;
 using Ithil.Privacy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.ML.Tokenizers;
 using Polly;
 using StackExchange.Redis;
-using Ithil.Core;
+using System.Text;
+using System.Threading.Channels;
 
 namespace Ithil.Gateway;
 
@@ -142,7 +142,7 @@ public static class ServiceCollectionExtensions
         configuration.GetSection("Ithil:Trace").Bind(traceOptions);
         if (traceOptions.BufferSize <= 0)
             throw new InvalidOperationException($"Ithil:Trace:BufferSize must be greater than 0; configured value: {traceOptions.BufferSize}.");
-        services.AddSingleton(Options.Create(traceOptions));
+        services.AddSingleton(Microsoft.Extensions.Options.Options.Create(traceOptions));
         services.AddSingleton<ITraceBuffer, Tracing.TraceRingBuffer>();
         services.AddSingleton<ITraceNotifier, TraceNotifier>();
         services.AddSingleton<ITraceSubscriptionManager, TraceSubscriptionManager>();
@@ -150,6 +150,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPrivacyFilter, PrivacyFilterService>();
 
         services.AddIthilAudit(configuration);
+
+        var shutdownOptions = new ShutdownOptions();
+        configuration.GetSection("Ithil:Shutdown").Bind(shutdownOptions);
+        if (shutdownOptions.TimeoutSeconds <= 0)
+            throw new InvalidOperationException(
+                $"Ithil:Shutdown:TimeoutSeconds must be greater than 0; configured value: {shutdownOptions.TimeoutSeconds}.");
+        services.AddSingleton(shutdownOptions);
+        services.Configure<HostOptions>(hostOptions =>
+            hostOptions.ShutdownTimeout = TimeSpan.FromSeconds(shutdownOptions.TimeoutSeconds));
 
         return services;
     }

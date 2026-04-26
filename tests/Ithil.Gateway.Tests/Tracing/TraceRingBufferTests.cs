@@ -9,7 +9,7 @@ namespace Ithil.Gateway.Tests.Tracing;
 public class TraceRingBufferTests
 {
     private static TraceRingBuffer Buffer(int size) =>
-        new(Options.Create(new TraceOptions { BufferSize = size }));
+        new(Microsoft.Extensions.Options.Options.Create(new TraceOptions { BufferSize = size }));
 
     private static AgentTraceEvent Event(string id) => new()
     {

@@ -22,7 +22,7 @@ public class AuditLoggerTests
         var record = BuildRecord("success");
 
         var start = DateTime.UtcNow;
-        await logger.WriteAsync(record);
+        await logger.WriteAsync(record, TestContext.Current.CancellationToken);
         var elapsed = (DateTime.UtcNow - start).TotalMilliseconds;
 
         elapsed.Should().BeLessThan(100);
@@ -41,11 +41,11 @@ public class AuditLoggerTests
         var cts = new CancellationTokenSource();
         _ = worker.StartAsync(cts.Token);
 
-        await channel.Writer.WriteAsync(BuildRecord("success"));
-        await channel.Writer.WriteAsync(BuildRecord("success"));
-        await channel.Writer.WriteAsync(BuildRecord("success"));
+        await channel.Writer.WriteAsync(BuildRecord("success"), TestContext.Current.CancellationToken);
+        await channel.Writer.WriteAsync(BuildRecord("success"), TestContext.Current.CancellationToken);
+        await channel.Writer.WriteAsync(BuildRecord("success"), TestContext.Current.CancellationToken);
 
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         await cts.CancelAsync();
 
         await sink1.Received(3).WriteAsync(Arg.Any<AuditRecord>());
@@ -69,8 +69,8 @@ public class AuditLoggerTests
         var cts = new CancellationTokenSource();
         _ = worker.StartAsync(cts.Token);
 
-        await channel.Writer.WriteAsync(BuildRecord("success"));
-        await Task.Delay(200);
+        await channel.Writer.WriteAsync(BuildRecord("success"), TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         await cts.CancelAsync();
 
         stderr.ToString().Should().NotBeEmpty();

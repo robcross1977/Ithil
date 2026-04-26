@@ -42,7 +42,7 @@ public class AuditSinkTests
             await sink.WriteAsync(BuildRecord("success"));
             await sink.WriteAsync(BuildRecord("error"));
 
-            var lines = await File.ReadAllLinesAsync(path);
+            var lines = await File.ReadAllLinesAsync(path, TestContext.Current.CancellationToken);
             lines.Should().HaveCount(2);
             JsonDocument.Parse(lines[0]);
             JsonDocument.Parse(lines[1]);

@@ -27,7 +27,7 @@ public class TraceHubTests
         var clients = Substitute.For<IHubCallerClients>();
         clients.Caller.Returns(caller);
 
-        var hub = new TraceHub(buffer, Options.Create(new TraceOptions()));
+        var hub = new TraceHub(buffer, Microsoft.Extensions.Options.Options.Create(new TraceOptions()));
         hub.Clients = clients;
 
         await hub.OnConnectedAsync();
