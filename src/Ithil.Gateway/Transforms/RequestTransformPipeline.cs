@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
+using StackExchange.Redis;
 using static LanguageExt.Prelude;
 
 namespace Ithil.Gateway.Transforms;
@@ -21,7 +22,7 @@ public class RequestTransformPipeline(
     /// <summary>
     /// Validates the request and stamps the trace ID header if all checks pass.
     /// Short-circuits with the appropriate status code if any check fails.
-    /// Unhandled exceptions set status 500 and fire an error trace event.
+    /// Redis failures set status 503; all other unhandled exceptions set status 500.
     /// </summary>
     public async Task TransformAsync(HttpContext context)
     {
@@ -29,9 +30,11 @@ public class RequestTransformPipeline(
 
         await result.Match(
             Succ: _ => Task.CompletedTask,
-            Fail: async _ =>
+            Fail: async ex =>
             {
-                context.Response.StatusCode = 500;
+                // Redis unavailable under FailClosed → 503 (Service Unavailable).
+                // Any other unhandled exception → 500 (Internal Server Error).
+                context.Response.StatusCode = ex is RedisException ? 503 : 500;
                 await traceNotifier.NotifyAsync(
                     new AgentTraceEvent
                     {

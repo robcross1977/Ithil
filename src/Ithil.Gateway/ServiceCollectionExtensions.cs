@@ -166,13 +166,16 @@ public static class ServiceCollectionExtensions
         services.Configure<HostOptions>(hostOptions =>
             hostOptions.ShutdownTimeout = TimeSpan.FromSeconds(shutdownOptions.TimeoutSeconds));
 
-        if (budgetEngineOptions.FailurePolicy == Ithil.Core.Enums.RedisFailurePolicy.FailOpen ||
-            cacheOptions.FailurePolicy == Ithil.Core.Enums.RedisFailurePolicy.FailOpen)
+        var failOpenComponents = new List<string>();
+        if (budgetEngineOptions.FailurePolicy == Ithil.Core.Enums.RedisFailurePolicy.FailOpen)
+            failOpenComponents.Add("budget enforcement (Ithil:Budget:FailurePolicy)");
+        if (cacheOptions.FailurePolicy == Ithil.Core.Enums.RedisFailurePolicy.FailOpen)
+            failOpenComponents.Add("semantic caching (Ithil:SemanticCache:FailurePolicy)");
+        if (failOpenComponents.Count > 0)
             Console.WriteLine(
-                "[Ithil] WARNING: Redis failure policy is FailOpen. Budget enforcement and " +
-                "semantic caching will be bypassed if Redis becomes unavailable. " +
-                "Set Ithil:Budget:FailurePolicy and Ithil:SemanticCache:FailurePolicy " +
-                "= FailClosed to reject requests instead.");
+                $"[Ithil] WARNING: The following governance components will be bypassed if Redis " +
+                $"becomes unavailable (FailOpen): {string.Join(", ", failOpenComponents)}. " +
+                $"Set these to FailClosed to reject requests instead.");
 
         return services;
     }

@@ -14,7 +14,8 @@ public class BudgetEngineOptions
 
     /// <summary>
     /// How the budget engine behaves when Redis is unavailable.
-    /// FailOpen passes requests through; FailClosed rejects them with 503.
+    /// FailOpen passes requests through; FailClosed propagates the Redis failure,
+    /// which the gateway pipeline surfaces as 503 Service Unavailable.
     /// Defaults to FailOpen to preserve existing behaviour.
     /// </summary>
     public RedisFailurePolicy FailurePolicy { get; set; } = RedisFailurePolicy.FailOpen;

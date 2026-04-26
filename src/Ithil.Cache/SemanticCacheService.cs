@@ -12,7 +12,8 @@ namespace Ithil.Cache;
 /// <summary>
 /// Redis-backed semantic cache. Matches tool calls by meaning rather than exact parameters.
 /// Uses vector embeddings and cosine similarity to find cache hits.
-/// Fails open — any error (Redis down, model unavailable) is treated as a cache miss.
+/// Redis failures are handled according to the configured <see cref="SemanticCacheOptions.FailurePolicy"/>.
+/// Non-Redis errors (model unavailable, parse failures) are always treated as cache misses.
 /// </summary>
 public class SemanticCacheService(
     IEmbeddingService embedder,
@@ -62,9 +63,15 @@ public class SemanticCacheService(
 
             return ParseSearchResult(result);
         }
-        catch (Exception) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
+        catch (RedisException) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
         {
-            // Fail open — Redis down, model error, parse failure all become a cache miss.
+            // Redis unavailable, FailOpen — treat as a cache miss and let the request proceed.
+            return Option<CacheResult>.None;
+        }
+        catch (Exception ex) when (ex is not RedisException)
+        {
+            // Non-Redis errors (model unavailable, parse failure) are always cache misses
+            // regardless of policy — these are not Redis availability events.
             return Option<CacheResult>.None;
         }
     }

@@ -35,8 +35,9 @@ public class SemanticCacheOptions
 
     /// <summary>
     /// How the cache behaves when Redis is unavailable.
-    /// FailOpen treats all errors as cache misses; FailClosed propagates the failure
-    /// so the pipeline can return 503. Write failures are non-fatal under both policies.
+    /// FailOpen treats Redis failures as cache misses; FailClosed propagates the failure,
+    /// which the gateway pipeline surfaces as 503 Service Unavailable.
+    /// Non-Redis errors and write failures are non-fatal under both policies.
     /// Defaults to FailOpen to preserve existing behaviour.
     /// </summary>
     public RedisFailurePolicy FailurePolicy { get; set; } = RedisFailurePolicy.FailOpen;
