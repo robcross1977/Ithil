@@ -1,3 +1,4 @@
+using Ithil.Core.Enums;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
@@ -13,11 +14,14 @@ namespace Ithil.Cache;
 /// Uses vector embeddings and cosine similarity to find cache hits.
 /// Fails open — any error (Redis down, model unavailable) is treated as a cache miss.
 /// </summary>
-public class SemanticCacheService : ISemanticCache
+public class SemanticCacheService(
+    IEmbeddingService embedder,
+    IDatabase redis,
+    SemanticCacheOptions options) : ISemanticCache
 {
-    private readonly IEmbeddingService _embedder;
-    private readonly IDatabase _redis;
-    private readonly SemanticCacheOptions _options;
+    private readonly IEmbeddingService _embedder = embedder;
+    private readonly IDatabase _redis = redis;
+    private readonly SemanticCacheOptions _options = options;
 
     // Index creation is idempotent but we only need to attempt it once per instance.
     private bool _indexCreated;
@@ -28,16 +32,6 @@ public class SemanticCacheService : ISemanticCache
     private const string IndexName = "ithil-cache-idx";
     private const string KeyPrefix = "cache:";
     private const int EmbeddingDims = 384;
-
-    public SemanticCacheService(
-        IEmbeddingService embedder,
-        IDatabase redis,
-        SemanticCacheOptions options)
-    {
-        _embedder = embedder;
-        _redis = redis;
-        _options = options;
-    }
 
     /// <summary>
     /// Looks up a semantically similar cached response.
@@ -68,7 +62,7 @@ public class SemanticCacheService : ISemanticCache
 
             return ParseSearchResult(result);
         }
-        catch (Exception)
+        catch (Exception) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
         {
             // Fail open — Redis down, model error, parse failure all become a cache miss.
             return Option<CacheResult>.None;
