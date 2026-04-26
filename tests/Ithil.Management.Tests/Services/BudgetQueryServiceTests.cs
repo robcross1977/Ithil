@@ -45,18 +45,17 @@ public class BudgetQueryServiceTests
     public async Task Reset_CallsBudgetEngine_AndAuditLogger()
     {
         _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(MakeConfig()));
-        _budget.ResetUsageAsync("agt_abc123").Returns(Task.CompletedTask);
-        _audit.WriteAsync(Arg.Any<AuditRecord>()).Returns(Task.CompletedTask);
+        _budget.ResetUsageAsync("agt_abc123", Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        _audit.WriteAsync(Arg.Any<AuditRecord>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var result = await CreateService().ResetAsync("agt_abc123", "operator@example.com");
 
         result.IsRight.Should().BeTrue();
-        await _budget.Received(1).ResetUsageAsync("agt_abc123");
-        await _audit.Received(1).WriteAsync(
-            Arg.Is<AuditRecord>(r =>
+        await _budget.Received(1).ResetUsageAsync("agt_abc123", Arg.Any<CancellationToken>());
+        await _audit.Received(1).WriteAsync(Arg.Is<AuditRecord>(r =>
                 r.AgentId == "agt_abc123" &&
                 r.Outcome == "budget-reset" &&
-                r.OperatorId == "operator@example.com"));
+                r.OperatorId == "operator@example.com"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
