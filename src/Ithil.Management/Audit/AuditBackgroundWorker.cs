@@ -18,7 +18,7 @@ public class AuditBackgroundWorker(Channel<AuditRecord> channel, IEnumerable<IAu
             await foreach (var record in _channel.Reader.ReadAllAsync(stoppingToken))
                 await ProcessRecordAsync(record);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // Shutdown signalled. Drain any records already queued so the audit
             // trail isn't lost just because the process is exiting. Bounded in
