@@ -1,4 +1,5 @@
 using Ithil.Core.Interfaces;
+using Ithil.Core.Licensing;
 using Ithil.Core.Models;
 using Ithil.Dashboard;
 using Ithil.Dashboard.Auth;
@@ -13,6 +14,9 @@ using System.Text;
 using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var licenseInfo = LicenseValidator.Validate(builder.Configuration);
+builder.Services.AddSingleton(licenseInfo);
 
 builder.Services.AddIthilServices(builder.Configuration);
 builder.Services.AddIthilManagement();
@@ -68,6 +72,8 @@ builder.Services.AddMcpServer()
         options.ConfigureSessionOptions = McpSessionConfiguration.ConfigureSessionAsync);
 
 var app = builder.Build();
+
+app.Logger.LogInformation("Ithil license validated. Tier: {Tier}", licenseInfo.Tier);
 
 // Resolve eagerly so the tiktoken download happens at startup, not on the first live request.
 app.Services.GetRequiredService<ITokenCounter>();
