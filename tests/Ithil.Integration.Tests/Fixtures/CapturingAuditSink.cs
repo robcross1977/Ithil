@@ -12,7 +12,7 @@ public sealed class CapturingAuditSink : IAuditSink
 {
     private readonly ConcurrentBag<AuditRecord> _records = new();
 
-    /// <summary>Snapshot of all records written so far.</summary>
+    /// <summary>Live collection of all records written so far.</summary>
     public IReadOnlyCollection<AuditRecord> Records => _records;
 
     /// <inheritdoc />

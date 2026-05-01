@@ -34,6 +34,9 @@ public class RequestTransformPipeline(
             Succ: _ => Task.CompletedTask,
             Fail: async ex =>
             {
+                // Client aborted the request — no point setting a status or emitting an error trace.
+                if (context.RequestAborted.IsCancellationRequested) return;
+
                 // Redis unavailable under FailClosed → 503 (Service Unavailable).
                 // Any other unhandled exception → 500 (Internal Server Error).
                 context.Response.StatusCode = ex is RedisException ? 503 : 500;
@@ -149,7 +152,7 @@ public class RequestTransformPipeline(
         catch (HttpRequestException) { requiredScopes = System.Array.Empty<string>(); }
         catch (TaskCanceledException) when (!context.RequestAborted.IsCancellationRequested)
         {
-            // Schema fetch timed out — not a client abort, so fail open.
+            // Schema fetch timed out (not a client abort) — fail open rather than blocking the call.
             requiredScopes = System.Array.Empty<string>();
         }
         if (requiredScopes.Length > 0)
