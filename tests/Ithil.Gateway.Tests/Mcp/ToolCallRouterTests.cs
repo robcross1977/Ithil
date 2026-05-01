@@ -19,6 +19,7 @@ public class ToolCallRouterTests
             AllowWrite: false,
             MaxResponseTokens: 2000,
             Category: null,
+            RequiredScopes: Array.Empty<string>(),
             HttpMethod: httpMethod,
             RoutePattern: routePattern,
             ParameterSources: parameterSources,

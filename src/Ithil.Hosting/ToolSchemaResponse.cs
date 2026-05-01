@@ -10,6 +10,7 @@ public record ToolSchemaResponse(
     bool AllowWrite,
     int MaxResponseTokens,
     string? Category,
+    string[] RequiredScopes,
     string HttpMethod,
     string RoutePattern,
     Dictionary<string, string> ParameterSources,

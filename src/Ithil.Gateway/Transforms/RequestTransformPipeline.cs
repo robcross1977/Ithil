@@ -8,12 +8,14 @@ using static LanguageExt.Prelude;
 namespace Ithil.Gateway.Transforms;
 
 /// <summary>
-/// Runs the inbound request pipeline: identity ersolution, budget check, allowlist check, and trace ID stamping.
+/// Runs the inbound request pipeline: identity resolution, budget check, allowlist check,
+/// scope check, and trace ID stamping.
 /// </summary>
 public class RequestTransformPipeline(
     IAgentIdentityService identityService,
     IBudgetEngine budgetEngine,
     IToolAllowlistService allowlistService,
+    IToolRegistry toolRegistry,
     ITraceIdFactory traceIdFactory,
     ITraceNotifier traceNotifier,
     IAuditLogger auditLogger
@@ -132,6 +134,41 @@ public class RequestTransformPipeline(
                 ErrorMessage = "tool not allowed",
             });
             return unit;
+        }
+
+        // Scope check — verify the agent holds every scope the tool requires.
+        var toolEntry = (await toolRegistry.GetToolsAsync()).Find(t =>
+            string.Equals(t.Name, toolName, StringComparison.OrdinalIgnoreCase));
+        var requiredScopes = toolEntry.Match(t => t.RequiredScopes, () => []);
+        if (requiredScopes.Length > 0)
+        {
+            var agentScopes = identity.Match(a => a.Scopes, () => LanguageExt.Seq<string>.Empty);
+            var hasAllScopes = requiredScopes.All(s =>
+                agentScopes.Exists(a => string.Equals(a, s, StringComparison.OrdinalIgnoreCase)));
+            if (!hasAllScopes)
+            {
+                context.Response.StatusCode = 403;
+                await traceNotifier.NotifyAsync(
+                    new AgentTraceEvent
+                    {
+                        TraceId = string.Empty,
+                        AgentId = agentId,
+                        ToolName = toolName,
+                        Status = "blocked",
+                        Timestamp = DateTime.UtcNow.ToString("O"),
+                    }
+                );
+                await auditLogger.WriteAsync(new AuditRecord
+                {
+                    Timestamp = DateTime.UtcNow.ToString("O"),
+                    TraceId = string.Empty,
+                    AgentId = agentId,
+                    ToolName = toolName,
+                    Outcome = "blocked",
+                    ErrorMessage = "insufficient scopes",
+                });
+                return unit;
+            }
         }
 
         // Store agentId and toolName in Items so the response transform can read them back.

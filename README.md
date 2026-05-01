@@ -424,6 +424,37 @@ Complete `appsettings.json` with all available options:
 
 ---
 
+## Development
+
+### Running the tests
+
+```bash
+dotnet test                          # all projects
+dotnet test tests/Ithil.Gateway.Tests
+dotnet test tests/Ithil.Management.Tests
+dotnet test tests/Ithil.Dashboard.PlaywrightTests
+```
+
+#### First-time Playwright setup
+
+The Playwright test project spins up a real Chromium browser. The browser binary ships inside the NuGet package but must be installed once before the tests will run:
+
+```bash
+PLAYWRIGHT_VERSION=1.51.0
+NODE=$(ls ~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/node/*/node | head -1)
+CLI=~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/package/cli.js
+$NODE $CLI install chromium
+```
+
+On Windows with PowerShell:
+```powershell
+pwsh tests/Ithil.Dashboard.PlaywrightTests/bin/Debug/net10.0/playwright.ps1 install chromium
+```
+
+This only needs to be done once per machine (or after upgrading the `Microsoft.Playwright` package version).
+
+---
+
 ## Deployment
 
 A minimal `docker-compose.yml` to get the gateway and Redis Stack running:

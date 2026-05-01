@@ -27,6 +27,7 @@ public static class McpSessionConfiguration
         }
 
         var allowlistService = context.RequestServices.GetRequiredService<IToolAllowlistService>();
+        var agentConfigRepo = context.RequestServices.GetRequiredService<IAgentConfigRepository>();
         var toolRegistry = context.RequestServices.GetRequiredService<IToolRegistry>();
         var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
         var registryOptions = context.RequestServices.GetRequiredService<ToolRegistryOptions>();
@@ -34,6 +35,8 @@ public static class McpSessionConfiguration
         var semanticCache = context.RequestServices.GetRequiredService<ISemanticCache>();
 
         var allowlist = await allowlistService.TryGetToolAllowlistAsync(agentId);
+        var agentConfig = await agentConfigRepo.GetAsync(agentId);
+        var agentScopes = agentConfig.Match(c => c.Scopes, () => LanguageExt.Seq<string>.Empty);
         var allTools = await toolRegistry.GetToolsAsync(cancellationToken);
 
         var allowedTools = allowlist.Match(
@@ -49,8 +52,15 @@ public static class McpSessionConfiguration
         // and would always throw at invocation. The source generator emits ITHIL001 for these.
         var invocableTools = allowedTools.Filter(t => !string.IsNullOrEmpty(t.HttpMethod));
 
+        // Exclude tools whose required scopes the agent does not hold.
+        // This prevents the agent from even seeing tools it cannot call.
+        var scopedTools = invocableTools.Filter(t =>
+            t.RequiredScopes.Length == 0 ||
+            t.RequiredScopes.All(s => agentScopes.Exists(a =>
+                string.Equals(a, s, StringComparison.OrdinalIgnoreCase))));
+
         options.ToolCollection = new McpServerPrimitiveCollection<McpServerTool>();
-        foreach (var tool in invocableTools)
+        foreach (var tool in scopedTools)
         {
             var fn = new ToolProxyAIFunction(tool, registryOptions.DownstreamBaseUrl, httpClientFactory, agentId, governance, semanticCache);
             options.ToolCollection.Add(McpServerTool.Create(fn));

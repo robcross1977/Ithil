@@ -12,6 +12,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <PackageId>Ithil.Attributes</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Ithil Software</Authors>
+    <Description>The [AgentTool] attribute for marking ASP.NET controller methods as MCP-callable tools. Works with the Ithil source generator to emit tool schemas at compile time.</Description>
+    <PackageTags>mcp;ai;agent;gateway;ithil</PackageTags>
+    <PackageProjectUrl>https://ithil.software</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/robcross1977/Ithil</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
 </Project>

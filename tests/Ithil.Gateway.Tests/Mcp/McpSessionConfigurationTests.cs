@@ -17,13 +17,13 @@ public class McpSessionConfigurationTests
     // Three sample tools used across tests.
     // HttpMethod must be non-empty so ConfigureSessionAsync's invocableTools filter passes them through.
     private static readonly ToolRegistryEntry GetInventory =
-        new("GetInventory", "Gets stock levels", false, 2000, null, "GET", "api/inventory", new(), new());
+        new("GetInventory", "Gets stock levels", false, 2000, null, Array.Empty<string>(), "GET", "api/inventory", new(), new());
 
     private static readonly ToolRegistryEntry CreateOrder =
-        new("CreateOrder", "Creates an order", false, 2000, null, "POST", "api/orders", new(), new());
+        new("CreateOrder", "Creates an order", false, 2000, null, Array.Empty<string>(), "POST", "api/orders", new(), new());
 
     private static readonly ToolRegistryEntry DeleteUser =
-        new("DeleteUser", "Deletes a user", false, 2000, null, "DELETE", "api/users/{id}", new(), new());
+        new("DeleteUser", "Deletes a user", false, 2000, null, Array.Empty<string>(), "DELETE", "api/users/{id}", new(), new());
 
     // Builds a minimal HttpContext whose RequestServices contains all dependencies
     // that ConfigureSessionAsync will resolve via GetRequiredService.
@@ -41,9 +41,14 @@ public class McpSessionConfigurationTests
         var semanticCache     = Substitute.For<ISemanticCache>();
         var httpClientFactory = Substitute.For<IHttpClientFactory>();
 
+        // AgentConfigRepository returns None so scoped tool filter defaults to "no scopes required" pass-through.
+        var agentConfigRepo = Substitute.For<IAgentConfigRepository>();
+        agentConfigRepo.GetAsync(Arg.Any<string>()).Returns(LanguageExt.Option<AgentConfig>.None);
+
         var services = new ServiceCollection();
         services.AddSingleton(allowlistService);
         services.AddSingleton(toolRegistry);
+        services.AddSingleton(agentConfigRepo);
         services.AddSingleton(httpClientFactory);
         services.AddSingleton(new ToolRegistryOptions { DownstreamBaseUrl = "http://localhost" });
         services.AddSingleton(new ToolCallGovernancePipeline(

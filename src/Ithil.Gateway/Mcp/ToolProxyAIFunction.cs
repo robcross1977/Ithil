@@ -55,7 +55,8 @@ internal sealed class ToolProxyAIFunction(
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync(cancellationToken);
             },
-            cancellationToken);
+            cancellationToken,
+            tool.MaxResponseTokens);
 
         // Write back to cache so future similar calls can skip the downstream hop.
         await semanticCache.SetAsync(tool.Name, argsDict, result, CacheTtl);

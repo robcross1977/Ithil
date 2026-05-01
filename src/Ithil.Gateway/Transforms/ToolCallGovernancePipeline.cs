@@ -24,13 +24,15 @@ public class ToolCallGovernancePipeline(
     /// <summary>
     /// Checks the agent's budget, invokes the downstream call, scrubs the response,
     /// records token usage, and emits trace and audit events.
-    /// Throws if the budget is exceeded or the downstream call fails.
+    /// Throws if the budget is exceeded, the downstream call fails, or the response
+    /// exceeds <paramref name="maxResponseTokens"/> (when non-zero).
     /// </summary>
     public async Task<string> ExecuteAsync(
         string agentId,
         string toolName,
         Func<Task<string>> invoke,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int maxResponseTokens = 0)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -64,7 +66,7 @@ public class ToolCallGovernancePipeline(
             Status = "pending", Timestamp = DateTime.UtcNow.ToString("O"),
         }, cancellationToken);
 
-        var result = await TryAsync(() => RunGovernedCallAsync(agentId, toolName, traceId, stopwatch, invoke, cancellationToken)).Try();
+        var result = await TryAsync(() => RunGovernedCallAsync(agentId, toolName, traceId, stopwatch, invoke, maxResponseTokens, cancellationToken)).Try();
 
         await result.Match(
             Succ: _ => Task.CompletedTask,
@@ -126,12 +128,17 @@ public class ToolCallGovernancePipeline(
 
     private async Task<string> RunGovernedCallAsync(
         string agentId, string toolName, string traceId, Stopwatch stopwatch, Func<Task<string>> invoke,
-        CancellationToken cancellationToken)
+        int maxResponseTokens, CancellationToken cancellationToken)
     {
         var rawBody = await invoke();
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(rawBody));
         var scrubbed = await privacyFilter.ScrubAsync(stream, cancellationToken);
         var tokensUsed = tokenCounter.CountTokens(scrubbed);
+
+        // Reject responses that exceed the tool's declared token ceiling.
+        if (maxResponseTokens > 0 && tokensUsed > maxResponseTokens)
+            throw new InvalidOperationException(
+                $"Tool '{toolName}' response exceeded the maximum allowed tokens ({tokensUsed} > {maxResponseTokens}).");
 
         await budgetEngine.RecordUsageAsync(agentId, tokensUsed, cancellationToken);
 

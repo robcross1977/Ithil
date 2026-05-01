@@ -4,6 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      The SDK only includes Microsoft.AspNetCore.App.Internal.Assets (which provides
+      _framework/blazor.server.js) when the host project contains .razor files.
+      Ithil.Gateway owns no .razor files — they live in Ithil.Dashboard — so we set
+      RequiresAspNetWebAssets explicitly to include the Blazor framework scripts in
+      the static-asset manifest served by MapStaticAssets().
+    -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
   </PropertyGroup>
 
   <ItemGroup>

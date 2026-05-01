@@ -4,7 +4,22 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <PackageId>Ithil.Hosting</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Ithil Software</Authors>
+    <Description>Add Ithil governance to your ASP.NET API. Provides AddIthilHosting() and MapIthilSchema() for exposing source-generated tool schemas to the Ithil Gateway.</Description>
+    <PackageTags>mcp;ai;agent;gateway;ithil</PackageTags>
+    <PackageProjectUrl>https://ithil.software</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/robcross1977/Ithil</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Ithil.Core\Ithil.Core.csproj" />

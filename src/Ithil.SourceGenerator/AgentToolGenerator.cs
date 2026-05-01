@@ -90,6 +90,7 @@ public class AgentToolGenerator : IIncrementalGenerator
         var allowWrite = GetNamedBool(attribute, "AllowWrite");
         var maxTokens = GetNamedInt(attribute, "MaxResponseTokens", 2000);
         var category = GetNamedString(attribute, "Category");
+        var requiredScopes = GetNamedStringArray(attribute, "RequiredScopes");
 
         // Map each C# parameter to its JSON Schema equivalent.
         // NullableAnnotation.Annotated means the type has a ? suffix (e.g. int?).
@@ -125,7 +126,7 @@ public class AgentToolGenerator : IIncrementalGenerator
             allowWrite,
             maxTokens,
             category,
-            [],
+            requiredScopes,
             parameters,
             httpMethod,
             routePattern,
@@ -165,6 +166,10 @@ public class AgentToolGenerator : IIncrementalGenerator
             sb.AppendLine($"            AllowWrite = {tool.AllowWrite.ToString().ToLower()},");
             sb.AppendLine($"            MaxResponseTokens = {tool.MaxResponseTokens},");
             sb.AppendLine($"            Category = {(tool.Category == null ? "null" : $"\"{tool.Category}\"")},");
+            var scopesLiteral = tool.RequiredScopes.Length == 0
+                ? "Array.Empty<string>()"
+                : $"new[] {{ {string.Join(", ", tool.RequiredScopes.Select(s => $"\"{Escape(s)}\""))} }}";
+            sb.AppendLine($"            RequiredScopes = {scopesLiteral},");
             sb.AppendLine($"            HttpMethod = \"{tool!.HttpMethod}\",");
             sb.AppendLine($"            RoutePattern = \"{Escape(tool.RoutePattern)}\",");
             sb.AppendLine("            ParameterSources = new Dictionary<string, string>");
@@ -190,6 +195,7 @@ public class AgentToolGenerator : IIncrementalGenerator
         sb.AppendLine("    public bool AllowWrite { get; set; }");
         sb.AppendLine("    public int MaxResponseTokens { get; set; }");
         sb.AppendLine("    public string? Category { get; set; }");
+        sb.AppendLine("    public string[] RequiredScopes { get; set; } = Array.Empty<string>();");
         sb.AppendLine("    public string HttpMethod { get; set; } = string.Empty;");
         sb.AppendLine("    public string RoutePattern { get; set; } = string.Empty;");
         sb.AppendLine("    public Dictionary<string, string> ParameterSources { get; set; } = new();");
@@ -218,6 +224,16 @@ public class AgentToolGenerator : IIncrementalGenerator
     {
         var arg = attr.NamedArguments.FirstOrDefault(a => a.Key == name);
         return arg.Key != null ? arg.Value.Value?.ToString() : null;
+    }
+
+    private static string[] GetNamedStringArray(AttributeData attr, string name)
+    {
+        var arg = attr.NamedArguments.FirstOrDefault(a => a.Key == name);
+        if (arg.Key == null || arg.Value.Kind != TypedConstantKind.Array) return [];
+        return arg.Value.Values
+            .Where(v => v.Value is string)
+            .Select(v => (string)v.Value!)
+            .ToArray();
     }
 
     // Reads [HttpGet("...")], [HttpPost("...")], etc. from the method symbol.
