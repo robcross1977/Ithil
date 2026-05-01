@@ -34,8 +34,18 @@ public static class McpSessionConfiguration
         var governance = context.RequestServices.GetRequiredService<ToolCallGovernancePipeline>();
         var semanticCache = context.RequestServices.GetRequiredService<ISemanticCache>();
 
-        var allowlist = await allowlistService.TryGetToolAllowlistAsync(agentId);
         var agentConfig = await agentConfigRepo.GetAsync(agentId);
+
+        // Reject inactive agents — they must not see or invoke any tools via MCP.
+        var isActive = agentConfig.Match(c => c.IsActive, () => false);
+        if (!isActive)
+        {
+            context.Response.StatusCode = 403;
+            await context.Response.WriteAsync("Active agent configuration is required.", cancellationToken);
+            return;
+        }
+
+        var allowlist = await allowlistService.TryGetToolAllowlistAsync(agentId);
         var agentScopes = agentConfig.Match(c => c.Scopes, () => LanguageExt.Seq<string>.Empty);
         var allTools = await toolRegistry.GetToolsAsync(cancellationToken);
 

@@ -137,9 +137,21 @@ public class RequestTransformPipeline(
         }
 
         // Scope check — verify the agent holds every scope the tool requires.
-        var toolEntry = (await toolRegistry.GetToolsAsync()).Find(t =>
-            string.Equals(t.Name, toolName, StringComparison.OrdinalIgnoreCase));
-        var requiredScopes = toolEntry.Match(t => t.RequiredScopes, () => []);
+        // Fail open if the registry is unreachable: a slow/down schema endpoint should not
+        // block unrelated tool calls. Genuine client cancellations are allowed to propagate.
+        string[] requiredScopes;
+        try
+        {
+            var toolEntry = (await toolRegistry.GetToolsAsync(context.RequestAborted)).Find(t =>
+                string.Equals(t.Name, toolName, StringComparison.OrdinalIgnoreCase));
+            requiredScopes = toolEntry.Match(t => t.RequiredScopes, () => System.Array.Empty<string>());
+        }
+        catch (HttpRequestException) { requiredScopes = System.Array.Empty<string>(); }
+        catch (TaskCanceledException) when (!context.RequestAborted.IsCancellationRequested)
+        {
+            // Schema fetch timed out — not a client abort, so fail open.
+            requiredScopes = System.Array.Empty<string>();
+        }
         if (requiredScopes.Length > 0)
         {
             var agentScopes = identity.Match(a => a.Scopes, () => LanguageExt.Seq<string>.Empty);

@@ -41,10 +41,11 @@ public class McpSessionConfigurationTests
         var semanticCache     = Substitute.For<ISemanticCache>();
         var httpClientFactory = Substitute.For<IHttpClientFactory>();
 
-        // AgentConfigRepository returns None so the agent has no scopes.
+        // Return an active agent config with no scopes so the IsActive check passes.
         // Only tools with no RequiredScopes will be visible; any scoped tool would be filtered out.
         var agentConfigRepo = Substitute.For<IAgentConfigRepository>();
-        agentConfigRepo.GetAsync(Arg.Any<string>()).Returns(LanguageExt.Option<AgentConfig>.None);
+        agentConfigRepo.GetAsync(Arg.Any<string>()).Returns(LanguageExt.Option<AgentConfig>.Some(
+            new AgentConfig { AgentId = agentId, Label = "Test", IsActive = true }));
 
         var services = new ServiceCollection();
         services.AddSingleton(allowlistService);
