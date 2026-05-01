@@ -178,6 +178,67 @@ public class ToolCallGovernancePipelineTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ThrowsWhenResponseExceedsMaxResponseTokens()
+    {
+        // Default setup returns 42 tokens; set a limit below that to trigger rejection.
+        var pipeline = CreatePipeline();
+
+        var act = () => pipeline.ExecuteAsync(
+            "agent-1", "GetInventory",
+            () => Task.FromResult("large response"),
+            default,
+            maxResponseTokens: 10);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*GetInventory*exceeded*10*");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EmitsErrorTelemetry_WhenResponseExceedsMaxResponseTokens()
+    {
+        // The rejection is surfaced as an exception that propagates through the standard
+        // error path — telemetry is emitted with "error" status.
+        var pipeline = CreatePipeline();
+
+        var act = () => pipeline.ExecuteAsync(
+            "agent-1", "GetInventory",
+            () => Task.FromResult("large response"),
+            default,
+            maxResponseTokens: 10);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        await _traceNotifier.Received(1).NotifyAsync(
+            Arg.Is<AgentTraceEvent>(e =>
+                e.AgentId == "agent-1" &&
+                e.ToolName == "GetInventory" &&
+                e.Status == "error"), Arg.Any<CancellationToken>());
+        await _auditLogger.Received(1).WriteAsync(
+            Arg.Is<AuditRecord>(r =>
+                r.AgentId == "agent-1" &&
+                r.ToolName == "GetInventory" &&
+                r.Outcome == "error"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DoesNotRecordBudgetUsage_WhenResponseExceedsMaxResponseTokens()
+    {
+        // Budget should not be charged when a response is rejected for exceeding token limit.
+        var pipeline = CreatePipeline();
+
+        var act = () => pipeline.ExecuteAsync(
+            "agent-1", "GetInventory",
+            () => Task.FromResult("large response"),
+            default,
+            maxResponseTokens: 10);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        await _budgetEngine.DidNotReceive().RecordUsageAsync(
+            Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task RecordCacheHitAsync_DoesNotCheckOrRecordBudget()
     {
         var pipeline = CreatePipeline();

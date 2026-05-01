@@ -77,6 +77,71 @@ public class RequestTransformPipelineTests
     }
 
     [Fact]
+    public async Task ReturnsForbidden_WhenAgentLacksRequiredScope()
+    {
+        const string agentId = "agent-1";
+        // Agent has no scopes; the tool requires "inventory:read".
+        AgentIdentity identity = new() { AgentId = agentId, Label = "test-agent", Scopes = LanguageExt.Seq<string>.Empty };
+        _identityService
+            .ResolveAgentAsync(Arg.Any<HttpContext>())
+            .Returns(Option<AgentIdentity>.Some(identity));
+        _budgetEngine.IsWithinBudgetAsync(agentId, Arg.Any<CancellationToken>()).Returns(true);
+        _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(true);
+
+        // Registry returns a tool that requires "inventory:read".
+        var scopedTool = new ToolRegistryEntry(
+            "GetInventory", "desc", false, 2000, null,
+            new[] { "inventory:read" },
+            "GET", "api/inventory", new(), new());
+        _toolRegistry
+            .GetToolsAsync(Arg.Any<CancellationToken>())
+            .Returns(LanguageExt.Seq.create(scopedTool));
+
+        var pipeline = CreatePipeline();
+        DefaultHttpContext context = new();
+        context.Request.Path = "/tools/GetInventory";
+
+        await pipeline.TransformAsync(context);
+
+        context.Response.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public async Task ReturnsForbidden_WhenAgentScopesMatchCaseInsensitively()
+    {
+        const string agentId = "agent-1";
+        // Agent has scope in uppercase; tool declares it in lowercase — should still pass.
+        AgentIdentity identity = new()
+        {
+            AgentId = agentId, Label = "test-agent",
+            Scopes = new[] { "INVENTORY:READ" }.ToSeq(),
+        };
+        _identityService
+            .ResolveAgentAsync(Arg.Any<HttpContext>())
+            .Returns(Option<AgentIdentity>.Some(identity));
+        _budgetEngine.IsWithinBudgetAsync(agentId, Arg.Any<CancellationToken>()).Returns(true);
+        _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(true);
+        _traceIdFactory.Create().Returns("trace-xyz");
+
+        var scopedTool = new ToolRegistryEntry(
+            "GetInventory", "desc", false, 2000, null,
+            new[] { "inventory:read" },
+            "GET", "api/inventory", new(), new());
+        _toolRegistry
+            .GetToolsAsync(Arg.Any<CancellationToken>())
+            .Returns(LanguageExt.Seq.create(scopedTool));
+
+        var pipeline = CreatePipeline();
+        DefaultHttpContext context = new();
+        context.Request.Path = "/tools/GetInventory";
+
+        await pipeline.TransformAsync(context);
+
+        // Case-insensitive match — should proceed past scope check.
+        context.Response.StatusCode.Should().Be(200);
+    }
+
+    [Fact]
     public async Task StampsTraceIdHeader_WhenAllChecksPass()
     {
         const string agentId = "agent-1";
@@ -89,6 +154,10 @@ public class RequestTransformPipelineTests
         _budgetEngine.IsWithinBudgetAsync(agentId, Arg.Any<CancellationToken>()).Returns(true);
         _allowListService.IsAllowedAsync(agentId, Arg.Any<string>()).Returns(true);
         _traceIdFactory.Create().Returns(traceId);
+        // Tool has no required scopes — scope check passes without restriction.
+        _toolRegistry
+            .GetToolsAsync(Arg.Any<CancellationToken>())
+            .Returns(LanguageExt.Seq<ToolRegistryEntry>.Empty);
 
         var pipeline = CreatePipeline();
         DefaultHttpContext context = new();

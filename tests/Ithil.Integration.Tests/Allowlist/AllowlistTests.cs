@@ -9,7 +9,7 @@ namespace Ithil.Integration.Tests.Allowlist;
 
 /// <summary>
 /// Integration tests for tool allowlist enforcement through the full gateway pipeline.
-/// The ?tool= query parameter on /api/test controls which tool the pipeline checks.
+/// The tool name is controlled by the last path segment — requests go to /api/{tool}.
 /// </summary>
 [Collection(GatewayCollection.Name)]
 public sealed class AllowlistTests(GatewayFixture fixture)

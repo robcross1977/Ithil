@@ -17,11 +17,12 @@ public sealed class BudgetEnforcementTests(GatewayFixture fixture)
     public async Task AgentUnderBudget_Returns200()
     {
         var agentId = $"budget-under-{Guid.NewGuid():N}";
+        // DailyTokenBudget is stored on AgentConfig but the engine currently enforces the
+        // global DefaultDailyTokenLimit (100 000). Seeding 5 000 is well under that ceiling.
         await fixture.AgentConfigRepo.UpsertAsync(new AgentConfig
         {
-            AgentId = agentId, Label = "Test", DailyTokenBudget = 10_000, IsActive = true,
+            AgentId = agentId, Label = "Test", DailyTokenBudget = 100_000, IsActive = true,
         });
-        // Seed 5 000 tokens used — well under the 10 000 limit.
         await fixture.SeedBudgetUsageAsync(agentId, 5_000);
 
         var response = await GetAsync(agentId);
@@ -33,11 +34,12 @@ public sealed class BudgetEnforcementTests(GatewayFixture fixture)
     public async Task AgentAtBudgetLimit_Returns429()
     {
         var agentId = $"budget-at-{Guid.NewGuid():N}";
+        // The engine enforces DefaultDailyTokenLimit (100 000). Seeding exactly that value
+        // puts usage at the boundary — not-strictly-less-than — so the agent is blocked.
         await fixture.AgentConfigRepo.UpsertAsync(new AgentConfig
         {
-            AgentId = agentId, Label = "Test", DailyTokenBudget = 10_000, IsActive = true,
+            AgentId = agentId, Label = "Test", DailyTokenBudget = 100_000, IsActive = true,
         });
-        // Seed exactly at the default daily limit.
         await fixture.SeedBudgetUsageAsync(agentId, 100_000);
 
         var response = await GetAsync(agentId);
@@ -51,9 +53,9 @@ public sealed class BudgetEnforcementTests(GatewayFixture fixture)
         var agentId = $"budget-over-{Guid.NewGuid():N}";
         await fixture.AgentConfigRepo.UpsertAsync(new AgentConfig
         {
-            AgentId = agentId, Label = "Test", DailyTokenBudget = 10_000, IsActive = true,
+            AgentId = agentId, Label = "Test", DailyTokenBudget = 100_000, IsActive = true,
         });
-        // Seed well over the default daily limit.
+        // Seed well over the global daily limit.
         await fixture.SeedBudgetUsageAsync(agentId, 200_000);
 
         var response = await GetAsync(agentId);
@@ -67,7 +69,7 @@ public sealed class BudgetEnforcementTests(GatewayFixture fixture)
         var agentId = $"budget-fresh-{Guid.NewGuid():N}";
         await fixture.AgentConfigRepo.UpsertAsync(new AgentConfig
         {
-            AgentId = agentId, Label = "Test", DailyTokenBudget = 10_000, IsActive = true,
+            AgentId = agentId, Label = "Test", DailyTokenBudget = 100_000, IsActive = true,
         });
         // No usage seeded — Redis key does not exist, engine treats as 0 used.
 
