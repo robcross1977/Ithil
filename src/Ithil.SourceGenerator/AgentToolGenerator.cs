@@ -167,7 +167,7 @@ public class AgentToolGenerator : IIncrementalGenerator
             sb.AppendLine($"            MaxResponseTokens = {tool.MaxResponseTokens},");
             sb.AppendLine($"            Category = {(tool.Category == null ? "null" : $"\"{tool.Category}\"")},");
             var scopesLiteral = tool.RequiredScopes.Length == 0
-                ? "Array.Empty<string>()"
+                ? "global::System.Array.Empty<string>()"
                 : $"new[] {{ {string.Join(", ", tool.RequiredScopes.Select(s => $"\"{Escape(s)}\""))} }}";
             sb.AppendLine($"            RequiredScopes = {scopesLiteral},");
             sb.AppendLine($"            HttpMethod = \"{tool!.HttpMethod}\",");
@@ -195,7 +195,7 @@ public class AgentToolGenerator : IIncrementalGenerator
         sb.AppendLine("    public bool AllowWrite { get; set; }");
         sb.AppendLine("    public int MaxResponseTokens { get; set; }");
         sb.AppendLine("    public string? Category { get; set; }");
-        sb.AppendLine("    public string[] RequiredScopes { get; set; } = Array.Empty<string>();");
+        sb.AppendLine("    public string[] RequiredScopes { get; set; } = global::System.Array.Empty<string>();");
         sb.AppendLine("    public string HttpMethod { get; set; } = string.Empty;");
         sb.AppendLine("    public string RoutePattern { get; set; } = string.Empty;");
         sb.AppendLine("    public Dictionary<string, string> ParameterSources { get; set; } = new();");

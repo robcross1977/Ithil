@@ -41,7 +41,8 @@ public class McpSessionConfigurationTests
         var semanticCache     = Substitute.For<ISemanticCache>();
         var httpClientFactory = Substitute.For<IHttpClientFactory>();
 
-        // AgentConfigRepository returns None so scoped tool filter defaults to "no scopes required" pass-through.
+        // AgentConfigRepository returns None so the agent has no scopes.
+        // Only tools with no RequiredScopes will be visible; any scoped tool would be filtered out.
         var agentConfigRepo = Substitute.For<IAgentConfigRepository>();
         agentConfigRepo.GetAsync(Arg.Any<string>()).Returns(LanguageExt.Option<AgentConfig>.None);
 

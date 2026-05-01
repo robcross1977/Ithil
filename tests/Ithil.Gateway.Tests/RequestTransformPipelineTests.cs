@@ -107,7 +107,7 @@ public class RequestTransformPipelineTests
     }
 
     [Fact]
-    public async Task ReturnsForbidden_WhenAgentScopesMatchCaseInsensitively()
+    public async Task ReturnsOk_WhenAgentScopesMatchCaseInsensitively()
     {
         const string agentId = "agent-1";
         // Agent has scope in uppercase; tool declares it in lowercase — should still pass.
