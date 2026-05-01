@@ -31,4 +31,3 @@ jobs:
           --no-build
           --configuration Release
           --filter "FullyQualifiedName!~PlaywrightTests"
-          --logger "github;annotations.outputFile=test-results.md"
