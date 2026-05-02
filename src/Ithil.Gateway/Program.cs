@@ -55,7 +55,14 @@ builder
                 as System.Diagnostics.Stopwatch;
             var latencyMs = stopwatch?.ElapsedMilliseconds;
 
-            await pipeline.TransformAsync(agentId, traceId, toolName, body, latencyMs);
+            var scrubbedBody = await pipeline.TransformAsync(agentId, traceId, toolName, body, latencyMs);
+
+            // Replace the proxy content with the (PII-scrubbed) version so YARP
+            // copies our modified body to the client rather than the consumed original stream.
+            var mediaType = transformContext.ProxyResponse.Content.Headers.ContentType?.MediaType
+                            ?? "application/json";
+            transformContext.ProxyResponse.Content = new System.Net.Http.StringContent(
+                scrubbedBody, System.Text.Encoding.UTF8, mediaType);
         });
     });
 // Redis is always a required dependency: IConnectionMultiplexer, BudgetEngine, and

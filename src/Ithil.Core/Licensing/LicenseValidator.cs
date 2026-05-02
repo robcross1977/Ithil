@@ -22,6 +22,10 @@ public static class LicenseValidator
         "The Ithil license key is invalid or has been tampered with.\n" +
         "Register at ithil.software/register to get a new key.";
 
+    private const string ExpiredMessage =
+        "The Ithil license key has expired.\n" +
+        "Non-commercial keys are valid for 30 days. Register again at ithil.software/register.";
+
     /// <summary>
     /// Reads and validates the license key from configuration using the embedded public key.
     /// </summary>
@@ -74,15 +78,26 @@ public static class LicenseValidator
                     ValidateIssuer = true,
                     ValidIssuer = "ithil.software",
                     ValidateAudience = false,
-                    ValidateLifetime = false,
+                    ValidateLifetime = true,
                     IssuerSigningKey = publicKey,
                     ValidAlgorithms = ["RS256"],
                 })
                 .GetAwaiter().GetResult();
 
-            return result.IsValid
-                ? ExtractLicenseInfo(result.SecurityToken as JsonWebToken)
-                : None;
+            if (!result.IsValid)
+            {
+                // Throw a user-friendly message for expired keys rather than the generic invalid message.
+                if (result.Exception is SecurityTokenExpiredException)
+                    throw new LicenseException(ExpiredMessage);
+
+                return None;
+            }
+
+            return ExtractLicenseInfo(result.SecurityToken as JsonWebToken);
+        }
+        catch (LicenseException)
+        {
+            throw; // let the expiry message propagate as-is
         }
         catch
         {

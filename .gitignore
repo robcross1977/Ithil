@@ -58,4 +58,7 @@ nvim
 .claude/*
 CLAUDE.MD
 
+# Sales demo guide — distributed separately, not part of the public repo
+DEMO.md
+
     

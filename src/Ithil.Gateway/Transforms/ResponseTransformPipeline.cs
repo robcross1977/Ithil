@@ -17,10 +17,11 @@ public class ResponseTransformPipeline(
 )
 {
     /// <summary>
-    /// Scrubs the response body, records token usage and fires a trace event.
-    /// Failures fire an error trace event instead of propagating the exception.
+    /// Scrubs the response body, records token usage, and fires a trace event.
+    /// Returns the scrubbed body so the caller can write it back to the response.
+    /// Failures fire an error trace event and return the empty string rather than propagating.
     /// </summary>
-    public async Task TransformAsync(
+    public async Task<string> TransformAsync(
         string agentId,
         string traceId,
         string toolName,
@@ -28,9 +29,13 @@ public class ResponseTransformPipeline(
         long? latencyMs
     )
     {
-        var result = await TryAsync(() =>
-                RunResponsePipelineAsync(agentId, traceId, toolName, body, latencyMs)
-            )
+        string scrubbedBody = string.Empty;
+
+        var result = await TryAsync(async () =>
+            {
+                scrubbedBody = await RunResponsePipelineAsync(agentId, traceId, toolName, body, latencyMs);
+                return unit;
+            })
             .Try();
 
         await result.Match(
@@ -60,9 +65,11 @@ public class ResponseTransformPipeline(
                 });
             }
         );
+
+        return scrubbedBody;
     }
 
-    private async Task<Unit> RunResponsePipelineAsync(
+    private async Task<string> RunResponsePipelineAsync(
         string agentId,
         string traceId,
         string toolName,
@@ -100,6 +107,6 @@ public class ResponseTransformPipeline(
             PiiScrubbed = true,
         });
 
-        return unit;
+        return scrubbedBody;
     }
 }
