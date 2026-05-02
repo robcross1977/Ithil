@@ -23,6 +23,17 @@ public class RequestTransformPipelineTests
     private RequestTransformPipeline CreatePipeline() =>
         new(_identityService, _budgetEngine, _allowListService, _toolRegistry, _traceIdFactory, _traceNotifier, _auditLogger);
 
+    /// <summary>
+    /// DefaultHttpContext.Response.Body is Stream.Null, which silently discards writes —
+    /// so tests that need to assert the short-circuit body was written must swap in a real stream.
+    /// </summary>
+    private static MemoryStream UseRecordingResponseBody(DefaultHttpContext context)
+    {
+        var stream = new MemoryStream();
+        context.Response.Body = stream;
+        return stream;
+    }
+
     [Fact]
     public async Task ReturnsUnauthorized_WhenAgentNotResolved()
     {
@@ -32,10 +43,14 @@ public class RequestTransformPipelineTests
 
         var pipeline = CreatePipeline();
         DefaultHttpContext context = new();
+        var body = UseRecordingResponseBody(context);
 
         await pipeline.TransformAsync(context);
 
+        // Status alone isn't enough — the body must be written and the response completed,
+        // otherwise YARP forwards the request and the upstream's status overwrites this one.
         context.Response.StatusCode.Should().Be(401);
+        body.ToArray().Should().NotBeEmpty();
     }
 
     [Fact]
@@ -50,10 +65,12 @@ public class RequestTransformPipelineTests
 
         var pipeline = CreatePipeline();
         DefaultHttpContext context = new();
+        var body = UseRecordingResponseBody(context);
 
         await pipeline.TransformAsync(context);
 
         context.Response.StatusCode.Should().Be(429);
+        body.ToArray().Should().NotBeEmpty();
     }
 
     [Fact]
@@ -70,10 +87,12 @@ public class RequestTransformPipelineTests
         var pipeline = CreatePipeline();
         DefaultHttpContext context = new();
         context.Request.Path = "/tools/GetInventory";
+        var body = UseRecordingResponseBody(context);
 
         await pipeline.TransformAsync(context);
 
         context.Response.StatusCode.Should().Be(403);
+        body.ToArray().Should().NotBeEmpty();
     }
 
     [Fact]
@@ -100,10 +119,12 @@ public class RequestTransformPipelineTests
         var pipeline = CreatePipeline();
         DefaultHttpContext context = new();
         context.Request.Path = "/tools/GetInventory";
+        var body = UseRecordingResponseBody(context);
 
         await pipeline.TransformAsync(context);
 
         context.Response.StatusCode.Should().Be(403);
+        body.ToArray().Should().NotBeEmpty();
     }
 
     [Fact]
