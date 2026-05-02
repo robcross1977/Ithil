@@ -35,11 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Run as a non-root user — required by most Kubernetes security policies.
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
+# Use the built-in non-root user that ships with .NET 8+ aspnet images.
+USER app
 
-COPY --from=build --chown=appuser:appuser /app/publish .
+COPY --from=build --chown=app:app /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
