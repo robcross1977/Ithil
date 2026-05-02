@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- Playwright needs a real HTTP listener, so this is a Web SDK project -->
+    <!--
+      The SDK only includes Microsoft.AspNetCore.App.Internal.Assets (which provides
+      _framework/blazor.server.js) when the host project contains .razor files.
+      This test project hosts Blazor at runtime but owns no .razor files itself, so
+      we set RequiresAspNetWebAssets explicitly to include the framework scripts.
+    -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="8.9.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.51.0" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Ithil.Dashboard\Ithil.Dashboard.csproj" />
+    <ProjectReference Include="..\..\src\Ithil.Management\Ithil.Management.csproj" />
+    <ProjectReference Include="..\..\src\Ithil.Core\Ithil.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    After building, install Playwright browsers.
+
+    Cross-platform (macOS/Linux/Windows — no PowerShell required):
+      PLAYWRIGHT_VERSION=1.51.0
+      NODE=$(ls ~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/node/*/node | head -1)
+      CLI=~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/package/cli.js
+      $NODE $CLI install chromium
+
+    PowerShell alternative (Windows / pwsh installed):
+      pwsh tests/Ithil.Dashboard.PlaywrightTests/bin/Debug/net10.0/playwright.ps1 install chromium
+
+    The NuGet package ships its own Node.js binary so the first approach always works
+    regardless of what is installed globally.
+  -->
+
+</Project>

@@ -1,0 +1,71 @@
+@page "/dashboard/agents"
+@attribute [Authorize(Policy = DashboardAuthPolicy.PolicyName)]
+@rendermode InteractiveServer
+
+<PageTitle>Ithil — Agents</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Agents</MudText>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="5">
+        <MudTextField @bind-Value="NewLabel" Label="Label" />
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudNumericField T="int" @bind-Value="NewDailyBudget" Label="Daily Token Budget" Min="1" />
+    </MudItem>
+    <MudItem xs="12" sm="3" Class="d-flex align-self-end">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="CreateAgentAsync" Disabled="@string.IsNullOrWhiteSpace(NewLabel)">
+            Create Agent
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@if (NewApiKey is not null)
+{
+    <MudAlert Severity="Severity.Success" ShowCloseIcon="true"
+              CloseIconClicked="@(() => NewApiKey = null)" Class="mb-4">
+        Agent created. Store this API key — it will not be shown again:
+        <MudText Typo="Typo.body2"><strong>@NewApiKey</strong></MudText>
+    </MudAlert>
+}
+
+@if (ErrorMessage is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@ErrorMessage</MudAlert>
+}
+
+<MudTable Items="@AgentList" Dense="true" Hover="true" Elevation="1">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Label</MudTh>
+        <MudTh>Daily Budget</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.AgentId</MudTd>
+        <MudTd>@context.Label</MudTd>
+        <MudTd>@context.DailyTokenBudget.ToString("N0")</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)"
+                     Size="Size.Small">
+                @(context.IsActive ? "Active" : "Inactive")
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudButton Color="Color.Error" Variant="Variant.Text" Size="Size.Small"
+                       OnClick="@(() => ConfirmDeleteAsync(context.AgentId))">
+                Revoke
+            </MudButton>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+<MudMessageBox @ref="ConfirmBox" Title="Revoke Agent" CancelText="Cancel">
+    <MessageContent>
+        Permanently revoke access for agent <strong>@AgentToDelete</strong>? This cannot be undone.
+    </MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error">Revoke</MudButton>
+    </YesButton>
+</MudMessageBox>

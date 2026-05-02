@@ -1,0 +1,8 @@
+﻿<MudStack Spacing="1">
+    <MudProgressLinear Color="@GaugeColor" Value="@ViewModel.PercentageUsed"
+                       Max="100" Rounded="true" />
+    <MudText Typo="Typo.caption">
+        @ViewModel.TokensUsedToday.ToString("N0") / @ViewModel.DailyBudget.ToString("N0") tokens
+        (@ViewModel.PercentageUsed.ToString("F1")%)
+    </MudText>
+</MudStack>

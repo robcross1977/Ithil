@@ -1,0 +1,34 @@
+@page "/dashboard"
+@page "/dashboard/overview"
+@attribute [Authorize(Policy = DashboardAuthPolicy.PolicyName)]
+@rendermode InteractiveServer
+
+<PageTitle>Ithil — Overview</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Overview</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="4">
+        <MudCard Elevation="1">
+            <MudCardContent>
+                <MudText Typo="Typo.overline">Active Agents</MudText>
+                <MudText Typo="Typo.h3">@ActiveAgentCount</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudCard Elevation="1">
+            <MudCardContent>
+                <MudText Typo="Typo.overline">Requests (last 60s)</MudText>
+                <MudText Typo="Typo.h3">@RecentRequestCount</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudCard Elevation="1">
+            <MudCardContent>
+                <MudText Typo="Typo.overline">Total Tokens Today</MudText>
+                <MudText Typo="Typo.h3">@TotalTokensToday.ToString("N0")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>

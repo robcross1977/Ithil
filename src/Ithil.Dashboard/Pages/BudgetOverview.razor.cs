@@ -1,0 +1,63 @@
+using Ithil.Dashboard.Models;
+using Ithil.Dashboard.Services;
+using Ithil.Management.Models;
+using LanguageExt;
+using Microsoft.AspNetCore.Components;
+
+namespace Ithil.Dashboard.Pages;
+
+/// <summary>
+/// Shows a BudgetGauge for every registered agent. Refreshes every 10 seconds.
+/// </summary>
+public partial class BudgetOverview : ComponentBase, IAsyncDisposable
+{
+    [Inject] private AgentDashboardService AgentService { get; set; } = default!;
+    [Inject] private BudgetDashboardService BudgetService { get; set; } = default!;
+
+    protected List<BudgetViewModel> Budgets { get; private set; } = [];
+
+    private Timer? _timer;
+    private int _refreshing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _timer = new Timer(_ =>
+        {
+            // Guard on the timer thread BEFORE queuing onto the renderer, otherwise
+            // multiple ticks can stack InvokeAsync callbacks before the first one flips the flag.
+            if (Interlocked.CompareExchange(ref _refreshing, 1, 0) != 0)
+                return;
+            _ = InvokeAsync(async () =>
+            {
+                try
+                {
+                    await RefreshAsync();
+                    StateHasChanged();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _refreshing, 0);
+                }
+            });
+        }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+    }
+
+    private async Task RefreshAsync()
+    {
+        var agentsResult = await AgentService.GetAllAsync();
+        var agents = agentsResult.Match(Right: a => a, Left: _ => Seq<AgentResponse>.Empty);
+
+        var budgetOptions = await Task.WhenAll(agents.Select(a => BudgetService.GetAsync(a.AgentId, a.Label)));
+        var results = new List<BudgetViewModel>();
+        foreach (var budget in budgetOptions)
+            budget.IfSome(vm => results.Add(vm));
+        Budgets = results;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_timer is not null)
+            await _timer.DisposeAsync();
+    }
+}

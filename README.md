@@ -1,0 +1,553 @@
+# Ithil
+
+**The Agentic Governance Layer for Enterprise .NET Backends**
+
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](./LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10%2B-purple)](https://dotnet.microsoft.com/)
+
+Ithil is a gateway that sits in front of your existing C# APIs and makes them safe for AI agents to call. It handles identity, budgets, privacy, caching, and observability — so your team doesn't have to build any of that.
+
+| Problem                                      | Ithil Solution                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| Agents hallucinate with messy REST APIs      | Compile-time MCP schema generation from `[AgentTool]`-decorated C# controllers |
+| No visibility into what agents are doing     | SignalR real-time trace feed — every tool call, latency, outcome               |
+| Agents loop and call destructive endpoints   | Circuit breaker + per-agent daily token budgets with hard 429 enforcement      |
+| Redundant LLM calls cost thousands per month | Semantic cache in Redis — keyed on intent, not raw request parameters          |
+| PII leaking to LLMs                          | Privacy filter scrubs every response before it leaves the gateway              |
+
+---
+
+## How It Works
+
+Ithil is two things working together: a **standalone gateway** you deploy, and a **small library** you add to your downstream services.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  AI Agent  (Claude / GPT / AutoGen / any MCP client)        │
+└─────────────────────────┬───────────────────────────────────┘
+                          │  JSON-RPC 2.0 over HTTP/SSE
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Ithil Gateway                                              │
+│                                                             │
+│  1. Verify agent identity  (JWT or API Key)                 │
+│  2. Check daily token budget                                │
+│  3. Verify tool is in agent's allowlist                     │
+│  4. Check semantic cache  (Redis vector search)             │
+│  5. Stamp X-Ithil-TraceId and forward request               │
+│  6. Scrub PII from response                                 │
+│  7. Record token usage                                      │
+│  8. Fire real-time trace event                              │
+└─────────────────────────┬───────────────────────────────────┘
+                          │  Internal HTTP
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Your C# Services  (unchanged, annotated with [AgentTool])  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The gateway reads `/ithil/schema` from each downstream service at startup — an endpoint your services expose automatically once they reference `Ithil.Attributes` and `Ithil.Hosting`.
+
+---
+
+## Quick Start
+
+### Step 1 — Annotate your controllers
+
+In your existing C# service, add the `Ithil.Attributes` and `Ithil.Hosting` packages:
+
+```bash
+dotnet add package Ithil.Attributes
+dotnet add package Ithil.Hosting
+```
+
+Decorate the methods you want agents to be able to call:
+
+```csharp
+[AgentTool("Returns current stock levels for a product",
+    Category = "Inventory",
+    AllowWrite = false,
+    MaxResponseTokens = 500)]
+public async Task<IActionResult> GetInventory(int productId, string warehouseId)
+{
+    // your existing implementation — unchanged
+}
+```
+
+Expose the schema endpoint so the gateway can discover your tools:
+
+```csharp
+// Program.cs in your downstream service
+app.MapIthilSchema(SchemaRegistry.Tools);
+```
+
+`SchemaRegistry` is generated at compile time by the Ithil Roslyn Source Generator — no reflection, no runtime cost.
+
+### Step 2 — Configure the gateway
+
+Clone the gateway and create your `appsettings.json`:
+
+```bash
+git clone https://github.com/crossland-creative/ithil
+cd src/Ithil.Gateway
+```
+
+```json
+{
+  "ConnectionStrings": {
+    "Redis": "your-redis-stack-host:6379"
+  },
+  "Ithil": {
+    "Jwt": {
+      "SigningKey": "your-32-plus-byte-signing-key",
+      "Issuer": "your-issuer",
+      "Audience": "ithil-gateway"
+    },
+    "Budget": {
+      "DefaultDailyTokenLimit": 100000
+    },
+    "ToolRegistry": {
+      "DownstreamBaseUrl": "http://your-service:5200"
+    }
+  },
+  "ReverseProxy": {
+    "Routes": {
+      "api-route": {
+        "ClusterId": "api-cluster",
+        "Match": { "Path": "/api/{**catch-all}" }
+      }
+    },
+    "Clusters": {
+      "api-cluster": {
+        "Destinations": {
+          "destination1": { "Address": "http://your-service:5200" }
+        }
+      }
+    }
+  }
+}
+```
+
+### Step 3 — Run
+
+```bash
+dotnet run
+# or
+docker compose -f docker/docker-compose.yml up
+```
+
+### Notes on startup
+
+**First-request delay** — the gateway downloads the tiktoken vocabulary file from `openaipublic.blob.core.windows.net` once on startup to initialise the token counter. This happens synchronously before the first request is served, so expect a few seconds of delay on cold boot depending on your network. Subsequent starts are not affected if the process is kept warm.
+
+**HTTPS redirection** — HTTPS redirection is enabled by default. In development, use the `https` launch profile (`dotnet run --launch-profile https`) to bind both HTTP and HTTPS ports. If you use the `http` profile only, the gateway will still redirect HTTP to the HTTPS port configured in `ASPNETCORE_HTTPS_PORTS` — make sure that port is actually listening or remove the environment variable to disable redirection locally. In production, configure the HTTPS port via `ASPNETCORE_HTTPS_PORTS` or the Kestrel `Endpoints` section in `appsettings.json`.
+
+### Step 4 — Point your agent at the gateway
+
+```
+POST https://your-gateway/mcp
+Authorization: Bearer <agent-jwt>
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": { "name": "GetInventory", "arguments": { "productId": 42, "warehouseId": "UK-01" } },
+  "id": 1
+}
+```
+
+The gateway verifies identity, checks budget, checks the allowlist, checks the semantic cache, then forwards to your service. The agent never touches your service directly.
+
+---
+
+## Features
+
+### `[AgentTool]` Attribute
+
+The only change you make to your existing C# code. Every parameter becomes part of the auto-generated MCP input schema.
+
+```csharp
+[AgentTool(
+    "Submits a purchase order for a product",
+    Category       = "Orders",
+    RequiredScopes = ["orders.write"],
+    AllowWrite     = true,
+    MaxResponseTokens = 1000)]
+public async Task<IActionResult> CreateOrder(string sku, int quantity, string buyerId)
+```
+
+- `AllowWrite` defaults to `false` — destructive methods require explicit opt-in
+- `MaxResponseTokens` defaults to `2000`
+- `RequiredScopes` are checked against the agent's JWT claims
+- Applying the attribute to a class decorates all public methods on that controller
+
+---
+
+### Agent Identity
+
+Every request must carry a verifiable agent identity. Two mechanisms are supported:
+
+**JWT (enterprise / OIDC-backed):**
+
+```
+Authorization: Bearer eyJhbGci...
+```
+
+The JWT must contain an `agent_id` claim. Signature, expiry, issuer, and audience are all validated.
+
+**API Key (self-serve):**
+
+```
+X-Api-Key: ithil_live_a3f9...
+```
+
+Keys are stored hashed (SHA-256) — the plaintext is shown once at creation and never stored.
+
+Configure JWT validation in `appsettings.json`:
+
+```json
+"Ithil": {
+  "Jwt": {
+    "SigningKey": "...",
+    "Issuer": "your-oidc-provider",
+    "Audience": "ithil-gateway"
+  }
+}
+```
+
+---
+
+### Budget Enforcement
+
+Each agent has a daily token budget. Once exhausted, every call returns `429` until UTC midnight resets the counter. Redis `INCR` ensures atomic accounting with no race conditions.
+
+```json
+"Ithil": {
+  "Budget": {
+    "DefaultDailyTokenLimit": 100000
+  }
+}
+```
+
+Per-agent limits are set on the agent config record and override the default. Token counts are stored in Redis with a 48-hour TTL — yesterday's usage remains available for reporting.
+
+If Redis is unreachable, the budget check **fails open** by default (requests are allowed through). This is configurable.
+
+---
+
+### Tool Allowlist
+
+Each agent config carries a list of tools it is allowed to call. A request to any tool not on that list returns `403` — the downstream service is never contacted.
+
+Allowlists are managed via the agent config record. An empty allowlist means the agent can call all tools.
+
+---
+
+### Privacy Filter
+
+Every response body passes through the privacy filter before it reaches the agent. Built-in patterns cover the most common PII types:
+
+| Pattern                                 | Replacement        |
+| --------------------------------------- | ------------------ |
+| Email addresses                         | `[EMAIL REDACTED]` |
+| Social Security Numbers (`NNN-NN-NNNN`) | `[SSN REDACTED]`   |
+| Credit card numbers (13–16 digits)      | `[CARD REDACTED]`  |
+
+Custom rules are added via config — no code changes required:
+
+```json
+"Ithil": {
+  "Privacy": {
+    "CustomRules": [
+      { "Pattern": "ACME-\\d{6}", "Replacement": "[ACCOUNT REDACTED]" },
+      { "Pattern": "EMP-[A-Z]{2}\\d{4}", "Replacement": "[EMPLOYEE REDACTED]" }
+    ]
+  }
+}
+```
+
+All regex patterns are compiled at startup — zero per-request compilation cost.
+
+---
+
+### Semantic Cache
+
+Cache entries are keyed on **semantic intent**, not raw parameters. Two agents asking for the same data with slightly different phrasing hit the same cache entry.
+
+Under the hood: request parameters are serialized to a normalized intent string, embedded via a local ONNX model (`all-MiniLM-L6-v2` — no data leaves your network), and matched against cached vectors in Redis using cosine similarity.
+
+```json
+"Ithil": {
+  "SemanticCache": {
+    "ModelPath": "models/all-MiniLM-L6-v2.onnx",
+    "VocabPath": "models/vocab.txt",
+    "SimilarityThreshold": 0.95,
+    "DefaultTtl": "00:15:00"
+  }
+}
+```
+
+> **Requires Redis Stack** (not plain Redis) for vector search support. See [Deployment](#deployment).
+
+Cache misses are fail-open — an unavailable Redis or embedding service never blocks a request.
+
+---
+
+### Circuit Breaker
+
+A Polly circuit breaker protects your downstream services from repeated failures. When the failure rate exceeds the threshold, the circuit opens and requests fail fast with `503` — no downstream calls are made.
+
+```json
+"Ithil": {
+  "CircuitBreaker": {
+    "FailureRatioThreshold": 0.5,
+    "SamplingDurationSeconds": 30,
+    "MinimumThroughput": 5,
+    "BreakDurationSeconds": 15
+  }
+}
+```
+
+Circuit state changes (Closed → Open → HalfOpen → Closed) are emitted as trace events, visible in the real-time trace feed.
+
+---
+
+### Audit Log
+
+Every tool call produces a structured audit record written to stdout as JSON Lines:
+
+```json
+{
+  "timestamp": "2026-03-24T14:32:01Z",
+  "traceId": "a1b2c3d4",
+  "agentId": "claude-prod-01",
+  "toolName": "GetInventory",
+  "outcome": "success",
+  "tokensUsed": 312,
+  "latencyMs": 84,
+  "cacheHit": false,
+  "piiScrubbed": false
+}
+```
+
+Possible `outcome` values: `success`, `error`, `blocked`, `cache-hit`, `budget-reset`.
+
+The default `StdoutAuditSink` is always active. Ship the stdout stream to your existing log aggregator (Datadog, Loki, Splunk, etc.) — no additional config required.
+
+---
+
+### Real-Time Tracing
+
+Every tool call emits an event to a SignalR hub at `/hubs/trace`. Connect any SignalR client to stream live agent activity:
+
+```javascript
+const connection = new HubConnectionBuilder()
+  .withUrl("https://your-gateway/hubs/trace")
+  .build();
+
+connection.on("TraceEvent", (event) => console.log(event));
+await connection.start();
+```
+
+Each event carries: `traceId`, `agentId`, `toolName`, `outcome`, `latencyMs`, `circuitState`, `timestamp`.
+
+---
+
+### Operator Dashboard
+
+A built-in Blazor dashboard is available at `/dashboard`. It provides a real-time view of everything happening in the gateway — no separate service to deploy.
+
+| Page             | Path                  | What it shows                                              |
+| ---------------- | --------------------- | ---------------------------------------------------------- |
+| Overview         | `/dashboard`          | Active agent count, recent request count, total tokens     |
+| Trace Feed       | `/dashboard/trace`    | Live stream of every tool call as it happens               |
+| Circuit Breakers | `/dashboard/circuits` | Per-agent circuit state (Closed / Open / HalfOpen)         |
+| Budget           | `/dashboard/budget`   | Per-agent token consumption gauge with warning threshold   |
+| Agents           | `/dashboard/agents`   | Registered agents — create, view, and manage               |
+
+**Authentication:** The dashboard uses a separate cookie session. Navigate to `/dashboard/login` and paste a valid admin-scoped JWT (one with `"scope": "admin"` in its claims) to sign in. The session lasts 8 hours.
+
+---
+
+## Configuration Reference
+
+Complete `appsettings.json` with all available options:
+
+```json
+{
+  "ConnectionStrings": {
+    "Redis": "localhost:6379"
+  },
+  "Ithil": {
+    "Jwt": {
+      "SigningKey": "your-32-plus-byte-signing-key",
+      "Issuer": "your-issuer",
+      "Audience": "ithil-gateway"
+    },
+    "LicenseKey": "your-license-key",
+    "Budget": {
+      "DefaultDailyTokenLimit": 100000
+    },
+    "SemanticCache": {
+      "ModelPath": "models/all-MiniLM-L6-v2.onnx",
+      "VocabPath": "models/vocab.txt",
+      "SimilarityThreshold": 0.95,
+      "DefaultTtl": "00:15:00"
+    },
+    "CircuitBreaker": {
+      "FailureRatioThreshold": 0.5,
+      "SamplingDurationSeconds": 30,
+      "MinimumThroughput": 5,
+      "BreakDurationSeconds": 15
+    },
+    "Privacy": {
+      "CustomRules": []
+    },
+    "ToolRegistry": {
+      "DownstreamBaseUrl": "http://localhost:5200"
+    }
+  },
+  "ReverseProxy": {
+    "Routes": {
+      "api-route": {
+        "ClusterId": "api-cluster",
+        "Match": { "Path": "/api/{**catch-all}" }
+      }
+    },
+    "Clusters": {
+      "api-cluster": {
+        "Destinations": {
+          "destination1": { "Address": "http://your-service:5200" }
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+## Requirements
+
+| Requirement      | Notes                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| .NET 10+         | Gateway and downstream services                                                                                                          |
+| Redis Stack      | Required for semantic cache (vector search) and budget engine. Plain Redis is **not** sufficient for the cache — use `redis/redis-stack` |
+| ONNX model files | `all-MiniLM-L6-v2.onnx` + `vocab.txt` — place in `models/` relative to the gateway. No internet access required at runtime               |
+
+**`Ithil:AgentStore:UseInMemory: true`:** Swaps the agent config and API key repositories to in-memory stores so you don't need Redis persistence for those during local development. Redis is still required for the budget engine and semantic cache — budget enforcement and vector search have no in-memory fallback. A local Redis Stack instance (e.g. via Docker) is the minimum dev setup.
+
+---
+
+## Development
+
+### Running the tests
+
+```bash
+dotnet test                          # all projects
+dotnet test tests/Ithil.Gateway.Tests
+dotnet test tests/Ithil.Management.Tests
+dotnet test tests/Ithil.Dashboard.PlaywrightTests
+```
+
+#### First-time Playwright setup
+
+The Playwright test project spins up a real Chromium browser. The browser binary ships inside the NuGet package but must be installed once before the tests will run:
+
+```bash
+PLAYWRIGHT_VERSION=1.51.0
+NODE=$(ls ~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/node/*/node | head -1)
+CLI=~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/package/cli.js
+$NODE $CLI install chromium
+```
+
+On Windows with PowerShell:
+```powershell
+pwsh tests/Ithil.Dashboard.PlaywrightTests/bin/Debug/net10.0/playwright.ps1 install chromium
+```
+
+This only needs to be done once per machine (or after upgrading the `Microsoft.Playwright` package version).
+
+---
+
+## Deployment
+
+The repo ships a ready-to-use compose file at `docker/docker-compose.yml`. Run it from the repo root:
+
+```bash
+docker compose -f docker/docker-compose.yml up
+```
+
+It requires three environment variables — set them before running or put them in a `.env` file next to the compose file:
+
+```bash
+ITHIL_JWT_SIGNING_KEY=your-32-plus-byte-signing-key
+ITHIL_DOWNSTREAM_URL=http://your-service:5200
+ITHIL_LICENSE_KEY=your-license-key
+```
+
+The gateway binds to `http://localhost:5100`. Redis Stack also exposes its browser UI at `http://localhost:8001`.
+
+For reference, the compose file looks like this:
+
+```yaml
+services:
+  redis:
+    image: redis/redis-stack:latest
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "5100:8080"
+    environment:
+      Ithil__Jwt__SigningKey: "${ITHIL_JWT_SIGNING_KEY}"
+      Ithil__Jwt__Issuer: "${ITHIL_JWT_ISSUER:-ithil}"
+      Ithil__Jwt__Audience: "${ITHIL_JWT_AUDIENCE:-ithil-gateway}"
+      Ithil__ToolRegistry__DownstreamBaseUrl: "${ITHIL_DOWNSTREAM_URL}"
+      Ithil__LicenseKey: "${ITHIL_LICENSE_KEY}"
+      ConnectionStrings__Redis: "redis:6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+```
+
+**Health checks** (no auth required):
+- `GET /health/live` — liveness probe. Returns `200` if the process is responding. Never checks external dependencies — a Redis outage must not restart the pod.
+- `GET /health/ready` — readiness probe. Returns `200` only when Redis is reachable and the ONNX embedding model loaded successfully. Returns `503` to divert traffic until dependencies recover.
+- `GET /health` — backward-compatible alias for `/health/ready`.
+
+> **Note:** For multi-instance gateway deployments, a Redis backplane is required for the SignalR trace hub. Configure via `AddStackExchangeRedisHubProtocol()`.
+
+---
+
+## License
+
+Ithil is licensed under the [Business Source License 1.1](./LICENSE) (BUSL-1.1).
+
+- **Non-commercial use** — free. Personal projects, open-source evaluation, internal development.
+- **Commercial production use** — requires a commercial license from Crossland Creative LLC.
+- **2033-04-17** — license converts to Apache 2.0, permanently and irrevocably.
+
+| Tier             | Price                | What You Get                                             |
+| ---------------- | -------------------- | -------------------------------------------------------- |
+| Non-Commercial   | Free                 | Full source under BUSL. Self-host. No commercial use.    |
+| Commercial Small | $149/mo or $1,490/yr | Commercial license, self-host, best-effort email support |
+| Enterprise       | Contact us           | Custom contract and SLA                                  |
+
+Commercial licensing: contact Crossland Creative LLC.

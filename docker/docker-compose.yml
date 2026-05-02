@@ -1,0 +1,33 @@
+services:
+  redis:
+    image: redis/redis-stack:latest
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "5100:8080"
+    environment:
+      Ithil__Jwt__SigningKey: "${ITHIL_JWT_SIGNING_KEY:?ITHIL_JWT_SIGNING_KEY is required}"
+      Ithil__Jwt__Issuer: "${ITHIL_JWT_ISSUER:-ithil}"
+      Ithil__Jwt__Audience: "${ITHIL_JWT_AUDIENCE:-ithil-gateway}"
+      Ithil__ToolRegistry__DownstreamBaseUrl: "${ITHIL_DOWNSTREAM_URL:?ITHIL_DOWNSTREAM_URL is required}"
+      Ithil__LicenseKey: "${ITHIL_LICENSE_KEY:?ITHIL_LICENSE_KEY is required}"
+      ConnectionStrings__Redis: "redis:6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:

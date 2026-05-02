@@ -1,0 +1,22 @@
+@page "/dashboard/login"
+@model Ithil.Dashboard.Pages.Dashboard.LoginModel
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Ithil — Dashboard Login</title>
+</head>
+<body>
+    <h1>Ithil Dashboard</h1>
+    @if (Model.ErrorMessage is not null)
+    {
+        <p>@Model.ErrorMessage</p>
+    }
+    <form method="post">
+        <label for="token">Admin JWT</label><br />
+        <input id="token" name="Token" type="password" size="80" autocomplete="off" spellcheck="false" /><br />
+        <button type="submit">Sign in</button>
+        @Html.AntiForgeryToken()
+    </form>
+</body>
+</html>
