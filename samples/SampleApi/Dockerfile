@@ -3,7 +3,6 @@ WORKDIR /repo
 
 # Copy the projects the SampleApi depends on
 COPY src/Ithil.Attributes/ src/Ithil.Attributes/
-COPY src/Ithil.Core/ src/Ithil.Core/
 COPY src/Ithil.Hosting/ src/Ithil.Hosting/
 COPY src/Ithil.SourceGenerator/ src/Ithil.SourceGenerator/
 COPY samples/SampleApi/ samples/SampleApi/
