@@ -1,16 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <ItemGroup>
-    <ProjectReference Include="..\Ithil.Core\Ithil.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="LanguageExt.Core" Version="4.4.9" />
-  </ItemGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- netstandard2.0 — AgentToolAttribute is a plain C# attribute with zero
+         framework dependencies, so it works on any .NET version (8, 9, 10, …)
+         and on .NET Framework 4.6.1+. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
 
     <PackageId>Ithil.Attributes</PackageId>
