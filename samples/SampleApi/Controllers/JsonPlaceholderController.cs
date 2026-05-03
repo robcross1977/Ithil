@@ -1,5 +1,4 @@
 using Ithil.Attributes;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Json;
 
@@ -7,11 +6,11 @@ namespace SampleApi.Controllers;
 
 /// <summary>
 /// Demo endpoints that proxy JSONPlaceholder — exposes posts, users, and comments
-/// as agent-callable tools behind JWT authentication.
+/// as agent-callable tools. Ithil handles authentication at the gateway layer;
+/// this API trusts all traffic that reaches it.
 /// </summary>
 [ApiController]
 [Route("api/placeholder")]
-[Authorize]
 public class JsonPlaceholderController(IHttpClientFactory httpClientFactory) : ControllerBase
 {
     private HttpClient Client => httpClientFactory.CreateClient("jsonplaceholder");
