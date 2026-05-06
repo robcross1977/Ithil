@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
 
     <PackageId>Ithil.Hosting</PackageId>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <Authors>Ithil Software</Authors>
     <Description>Add Ithil governance to your ASP.NET API. Provides AddIthilHosting() and MapIthilSchema() for exposing source-generated tool schemas to the Ithil Gateway.</Description>
     <PackageTags>mcp;ai;agent;gateway;ithil</PackageTags>
