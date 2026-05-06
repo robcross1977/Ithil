@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
 
     <PackageId>Ithil.Hosting</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>Ithil Software</Authors>
     <Description>Add Ithil governance to your ASP.NET API. Provides AddIthilHosting() and MapIthilSchema() for exposing source-generated tool schemas to the Ithil Gateway.</Description>
     <PackageTags>mcp;ai;agent;gateway;ithil</PackageTags>
@@ -43,6 +43,10 @@
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
+    <!-- Props file explicitly registers the analyzer when the package is installed.
+         NuGet auto-detection of analyzers/dotnet/cs/ is unreliable; the props file is required. -->
+    <None Include="build\Ithil.Hosting.props" Pack="true" PackagePath="build" />
+    <None Include="build\Ithil.Hosting.props" Pack="true" PackagePath="buildTransitive" />
   </ItemGroup>
 
 </Project>
