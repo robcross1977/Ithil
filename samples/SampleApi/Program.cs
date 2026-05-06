@@ -8,4 +8,5 @@ builder.Services.AddHttpClient("jsonplaceholder", client =>
 var app = builder.Build();
 
 app.MapControllers();
+
 app.Run();

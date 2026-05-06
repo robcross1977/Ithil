@@ -12,7 +12,7 @@ The SampleApi in this folder is the finished result.
 |---|---|
 | .NET 10 SDK | Run `dotnet --version` in a terminal. Should print `10.x.x`. |
 | Docker Desktop running | The Docker icon in your system tray should be green. |
-| An Anthropic API key | You need this to test an AI agent calling your tools. |
+| An Ithil license key | Register for free at [ithil.software/register](https://ithil.software/register). Non-commercial keys are valid for 30 days. |
 
 ---
 
@@ -25,6 +25,14 @@ docker run -d -p 6379:6379 redis
 ```
 
 If you see a long string of letters and numbers printed, Redis is running. If Docker says the container already exists, it's already running.
+
+To confirm Redis is accepting connections:
+
+```bash
+docker run --rm --network host redis redis-cli ping
+```
+
+You should see `PONG`.
 
 ---
 
@@ -76,7 +84,7 @@ That's the only package needed. It installs everything — the hosting library a
 
 ### Step 3b — Update `Program.cs`
 
-Add two lines (marked with `// ADD THIS`):
+Add four lines (marked with `// ADD THIS`):
 
 ```csharp
 using Ithil.Generated;   // ADD THIS
@@ -104,10 +112,10 @@ Add `[AgentTool("description")]` to any controller method you want to expose:
 ```csharp
 using Ithil.Attributes;   // ADD THIS
 
-[AgentTool("Returns all posts")]   // ADD THIS
-[HttpGet("posts")]
-public async Task<IActionResult> GetPosts() =>
-    Ok(await Client.GetFromJsonAsync<object[]>("posts"));
+[AgentTool("Returns a single post by ID")]   // ADD THIS
+[HttpGet("posts/{id:int}")]
+public async Task<IActionResult> GetPost(int id) =>
+    Ok(await Client.GetFromJsonAsync<object>($"posts/{id}"));
 ```
 
 The description is what the AI sees when deciding which tool to call. Write it like you're explaining to a person.
@@ -128,6 +136,22 @@ dotnet build
 
 The build generates `SchemaRegistry.Tools` automatically from your `[AgentTool]` attributes.
 
+### Confirm the schema endpoint works
+
+Start the API:
+
+```bash
+dotnet run --urls "http://localhost:5200"
+```
+
+Then in a second terminal:
+
+```bash
+curl http://localhost:5200/ithil/schema
+```
+
+You should see a JSON array of your `[AgentTool]`-decorated methods. This is the endpoint the gateway polls to discover your tools.
+
 ---
 
 ## Part 4 — Start the gateway
@@ -145,48 +169,127 @@ docker run -d \
 ```
 
 **What each setting means:**
-- `Ithil__LicenseKey` — your license key from [ithil.software/register](https://ithil.software/register). Free non-commercial keys are valid for 30 days.
+- `Ithil__LicenseKey` — your license key from [ithil.software/register](https://ithil.software/register).
 - `Ithil__Jwt__SigningKey` — a secret string (at least 32 characters) used to sign agent tokens. Use anything long and random for a demo.
 - `Ithil__ToolRegistry__DownstreamBaseUrl` — where your API is running. `host.docker.internal` lets Docker reach your local machine.
 - `ConnectionStrings__Redis` — where Redis is running.
 
-**Start your API** (in a separate terminal, in the SampleApi folder):
+Check the gateway is healthy:
 
 ```bash
-dotnet run --urls "http://localhost:5200"
+curl http://localhost:5100/health/ready
 ```
+
+You should see `Healthy`.
 
 ---
 
-## Part 5 — Verify it works
+## Part 5 — Verify the MCP endpoint works
 
-### Check the gateway discovered your tools
+The gateway exposes an MCP endpoint at `/mcp`. AI agents connect to this URL.
 
-```bash
-curl http://localhost:5100/ithil/schema
-```
+### Step 5a — Get a short-lived agent token
 
-You should see a JSON list of all your `[AgentTool]`-decorated methods.
-
-### Check the MCP endpoint is live
+In development, use the built-in token endpoint (only works from localhost):
 
 ```bash
-curl http://localhost:5100/.well-known/mcp
+curl http://localhost:5100/dev/token?agentId=my-agent
 ```
 
-This is the URL you give to Claude or any MCP-compatible AI agent.
+Copy the `token` value from the response.
+
+### Step 5b — Initialize an MCP session
+
+```bash
+curl -si http://localhost:5100/mcp \
+  -H "Authorization: Bearer <token-from-above>" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}}}'
+```
+
+Copy the `Mcp-Session-Id` value from the response headers.
+
+### Step 5c — List your tools
+
+```bash
+curl -s http://localhost:5100/mcp \
+  -H "Authorization: Bearer <token-from-above>" \
+  -H "Mcp-Session-Id: <session-id-from-step-b>" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+```
+
+You should see your `[AgentTool]`-decorated methods listed by name and description.
+
+### Step 5d — Make a tool call
+
+```bash
+curl -s http://localhost:5100/mcp \
+  -H "Authorization: Bearer <token-from-above>" \
+  -H "Mcp-Session-Id: <session-id-from-step-b>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "GetPost",
+      "arguments": { "id": 1 }
+    }
+  }'
+```
+
+You will see the post data in the response. If the user record includes an email address, notice it will appear as `[EMAIL REDACTED]` — the gateway's PII filter applied automatically, with no changes to your API code.
 
 ---
 
-## Part 6 — Connect an AI agent
+## Part 6 — Connect Claude Desktop
 
-Point Claude Desktop (or any MCP client) at:
+Claude Desktop supports MCP servers over HTTP. Point it at the gateway's `/mcp` endpoint.
 
+### Step 6a — Get a token
+
+```bash
+curl http://localhost:5100/dev/token?agentId=claude-desktop
 ```
-http://localhost:5100/.well-known/mcp
+
+Copy the `token` value. Tokens are valid for 8 hours; repeat this step if Claude stops seeing your tools.
+
+### Step 6b — Edit the Claude Desktop config file
+
+Open the config file in a text editor:
+
+| Platform | Path |
+|----------|------|
+| Mac | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+
+Add the `mcpServers` block (create the file if it doesn't exist):
+
+```json
+{
+  "mcpServers": {
+    "ithil": {
+      "url": "http://localhost:5100/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}
 ```
 
-The agent will see your tools by name and description, and can call them through the gateway — with full token budget enforcement, PII filtering, and audit logging applied automatically.
+Replace `YOUR_TOKEN_HERE` with the token from Step 6a.
+
+### Step 6c — Restart Claude Desktop
+
+Quit and reopen Claude Desktop. You should see a tools icon in the message bar showing your API's tools are connected.
+
+Ask Claude something like:
+
+> "Fetch post number 5 for me"
+
+Claude will call `GetPost` through the Ithil gateway — with budget enforcement, PII filtering, and audit logging applied transparently.
 
 ---
 
