@@ -21,15 +21,15 @@ The SampleApi in this folder is the **starting point** — a plain .NET API with
 Ithil uses Redis to track token budgets. Run this once to start it in Docker:
 
 ```bash
-docker run -d -p 6379:6379 redis
+docker run -d --name ithil-redis -p 6379:6379 redis
 ```
 
-If you see a long string of letters and numbers printed, Redis is running. If Docker says the container already exists, it's already running.
+If you see a long string of letters and numbers printed, Redis is running. If Docker says a container named `ithil-redis` already exists, it's already running.
 
-To confirm Redis is accepting connections, find the container name from `docker ps` and run:
+To confirm Redis is accepting connections:
 
 ```bash
-docker exec <redis-container-name> redis-cli ping
+docker exec ithil-redis redis-cli ping
 ```
 
 You should see `PONG`.
@@ -190,13 +190,15 @@ The gateway exposes an MCP endpoint at `/mcp`. AI agents connect to this URL.
 
 ### Step 5a — Get a short-lived agent token
 
-In development, use the built-in token endpoint (only works from localhost):
+In development, use the built-in token endpoint. It always issues a token for the built-in `dev-agent-01` account — the `agentId` parameter is not used.
 
 ```bash
-curl http://localhost:5100/dev/token?agentId=my-agent
+curl http://localhost:5100/dev/token
 ```
 
 Copy the `token` value from the response.
+
+> **Note:** `/dev/token` only responds to loopback callers. On Docker Desktop (Mac/Windows) this works from the host because Docker's userspace proxy preserves the loopback address. On Linux Docker it may return 404 — in that case, run the gateway with `dotnet run --project src/Ithil.Gateway --no-launch-profile` instead of Docker for local development.
 
 ### Step 5b — Initialize an MCP session
 
@@ -250,10 +252,10 @@ Claude Desktop supports MCP servers over HTTP. Point it at the gateway's `/mcp` 
 ### Step 6a — Get a token
 
 ```bash
-curl http://localhost:5100/dev/token?agentId=claude-desktop
+curl http://localhost:5100/dev/token
 ```
 
-Copy the `token` value. Tokens are valid for 8 hours; repeat this step if Claude stops seeing your tools.
+Copy the `token` value. Tokens are valid for 8 hours and are always issued for `dev-agent-01`. Repeat this step if Claude stops seeing your tools.
 
 ### Step 6b — Edit the Claude Desktop config file
 
