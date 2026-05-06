@@ -24,7 +24,7 @@ Ithil uses Redis to track token budgets. Run this once to start it in Docker:
 docker run -d -p 6379:6379 redis
 ```
 
-You only need to do this once per machine. If Docker says the container already exists, it's already running.
+If you see a long string of letters and numbers printed, Redis is running. If Docker says the container already exists, it's already running.
 
 ---
 
@@ -137,6 +137,7 @@ The gateway sits in front of your API and handles authentication, token budgets,
 ```bash
 docker run -d \
   -p 5100:8080 \
+  -e Ithil__LicenseKey="your-license-key" \
   -e Ithil__Jwt__SigningKey="your-32-character-or-longer-key-here" \
   -e Ithil__ToolRegistry__DownstreamBaseUrl="http://host.docker.internal:5200" \
   -e ConnectionStrings__Redis="host.docker.internal:6379" \
@@ -144,6 +145,7 @@ docker run -d \
 ```
 
 **What each setting means:**
+- `Ithil__LicenseKey` — your license key from [ithil.software/register](https://ithil.software/register). Free non-commercial keys are valid for 30 days.
 - `Ithil__Jwt__SigningKey` — a secret string (at least 32 characters) used to sign agent tokens. Use anything long and random for a demo.
 - `Ithil__ToolRegistry__DownstreamBaseUrl` — where your API is running. `host.docker.internal` lets Docker reach your local machine.
 - `ConnectionStrings__Redis` — where Redis is running.
