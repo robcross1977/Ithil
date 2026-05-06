@@ -2,7 +2,7 @@
 ## How to add Ithil governance to an existing ASP.NET API — step by step
 
 This guide walks through everything a developer does to connect their API to Ithil.
-The SampleApi in this folder is the finished result.
+The SampleApi in this folder is the **starting point** — a plain .NET API with no Ithil integration. Follow the steps below to add Ithil yourself.
 
 ---
 
@@ -26,10 +26,10 @@ docker run -d -p 6379:6379 redis
 
 If you see a long string of letters and numbers printed, Redis is running. If Docker says the container already exists, it's already running.
 
-To confirm Redis is accepting connections:
+To confirm Redis is accepting connections, find the container name from `docker ps` and run:
 
 ```bash
-docker run --rm --network host redis redis-cli ping
+docker exec <redis-container-name> redis-cli ping
 ```
 
 You should see `PONG`.

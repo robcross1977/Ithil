@@ -2,7 +2,7 @@ namespace Ithil.Hosting;
 
 /// <summary>
 /// Describes a single [AgentTool]-decorated endpoint as discovered at compile time
-/// by the Ithil source generator. <see cref="SchemaRegistry"/> returns a list of these.
+/// by the Ithil source generator. <c>SchemaRegistry</c> returns a list of these.
 /// </summary>
 public class ToolEntry
 {

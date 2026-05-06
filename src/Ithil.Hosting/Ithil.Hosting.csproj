@@ -44,8 +44,8 @@
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
     <!-- Props file explicitly registers the analyzer when the package is installed.
-         NuGet auto-detection of analyzers/dotnet/cs/ is unreliable; the props file is required. -->
-    <None Include="build\Ithil.Hosting.props" Pack="true" PackagePath="build" />
+         NuGet auto-detection of analyzers/dotnet/cs/ is unreliable; the props file is required.
+         buildTransitive covers both direct and transitive consumers, so build is not needed. -->
     <None Include="build\Ithil.Hosting.props" Pack="true" PackagePath="buildTransitive" />
   </ItemGroup>
 
