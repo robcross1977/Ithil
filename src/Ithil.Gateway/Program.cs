@@ -4,6 +4,7 @@ using Ithil.Core.Models;
 using Ithil.Dashboard;
 using Ithil.Dashboard.Auth;
 using Ithil.Gateway;
+using Ithil.Gateway.Auth;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Management;
 using Ithil.Gateway.Mcp;
@@ -190,6 +191,7 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 {
     Predicate = check => check.Tags.Contains("ready"),
 });
+app.MapAdminAuthEndpoints();
 app.MapManagementEndpoints();
 
 // OAuth 2.0 Protected Resource Metadata (RFC 9728).

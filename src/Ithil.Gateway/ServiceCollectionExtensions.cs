@@ -3,6 +3,7 @@ using Ithil.Cache;
 using Ithil.Core;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
+using Ithil.Gateway.Auth;
 using Ithil.Gateway.Hubs;
 using Ithil.Gateway.Identity;
 using Ithil.Gateway.Management;
@@ -62,6 +63,10 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<IApiKeyRepository, RedisApiKeyRepository>();
         services.AddScoped<IAgentIdentityService, AgentIdentityService>();
+
+        var adminOptions = new AdminOptions();
+        configuration.GetSection("Ithil:Admin").Bind(adminOptions);
+        services.AddSingleton(adminOptions);
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(
