@@ -191,6 +191,34 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     Predicate = check => check.Tags.Contains("ready"),
 });
 app.MapManagementEndpoints();
+
+// OAuth 2.0 Protected Resource Metadata (RFC 9728).
+// MCP HTTP clients (e.g. Claude Desktop via mcp-remote) fetch this to discover the auth server
+// before attempting to connect. Must be anonymous — it's a public metadata endpoint.
+app.MapGet("/.well-known/oauth-protected-resource", (HttpRequest request) =>
+    Results.Ok(new
+    {
+        resource = $"{request.Scheme}://{request.Host}",
+        authorization_servers = new[] { $"{request.Scheme}://{request.Host}" },
+        bearer_methods_supported = new[] { "header" },
+    })).AllowAnonymous();
+
+// OAuth 2.0 Authorization Server Metadata (RFC 8414).
+// mcp-remote fetches this endpoint before connecting. Without it, the empty 404 body causes
+// a crash: "Invalid OAuth error response: SyntaxError: Unexpected end of JSON input. Raw body: "
+// Once mcp-remote gets valid JSON here, it sees the pre-configured Authorization header in the
+// Claude Desktop config and skips the OAuth flow entirely.
+app.MapGet("/.well-known/oauth-authorization-server", (HttpRequest request) =>
+    Results.Ok(new
+    {
+        issuer = $"{request.Scheme}://{request.Host}",
+        token_endpoint = $"{request.Scheme}://{request.Host}/token",
+        response_types_supported = new[] { "token" },
+        grant_types_supported = new[] { "urn:ietf:params:oauth:grant-type:jwt-bearer" },
+        token_endpoint_auth_methods_supported = new[] { "none" },
+        scopes_supported = new[] { "mcp" },
+    })).AllowAnonymous();
+
 app.MapMcp("/mcp").RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
 app.MapReverseProxy().RequireAuthorization(ManagementAuthPolicy.AgentPolicyName);
 

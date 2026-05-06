@@ -3,6 +3,9 @@ using Ithil.Management.Models;
 using Ithil.Management.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace Ithil.Gateway.Management;
 
@@ -63,6 +66,38 @@ public static class ManagementEndpoints
 
         group.MapGet("/tools", async (IToolRegistry registry) =>
             Results.Ok(await registry.GetToolsAsync()));
+
+        // Issues a signed JWT for an existing agent. The caller is an admin (enforced by the
+        // management group policy). The returned token is what goes into the MCP client config
+        // (Claude Desktop, Codex CLI, etc.) as the Authorization: Bearer value.
+        group.MapPost("/agents/{id}/token", async (
+            string id,
+            IssueTokenRequest? request,
+            IAgentManagementService svc,
+            IConfiguration config) =>
+        {
+            var result = await svc.GetAsync(id);
+            return result.Match(
+                Right: agent =>
+                {
+                    if (!agent.IsActive)
+                        return Results.BadRequest(new { message = $"Agent '{id}' is inactive." });
+
+                    var jwt        = config.GetSection("Ithil:Jwt");
+                    var key        = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
+                    var expiresAt  = DateTime.UtcNow.AddDays(request?.ExpiresInDays ?? 30);
+                    var token      = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+                    {
+                        Claims             = new Dictionary<string, object> { { "agent_id", id } },
+                        Expires            = expiresAt,
+                        Issuer             = jwt["Issuer"],
+                        Audience           = jwt["Audience"],
+                        SigningCredentials  = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+                    });
+                    return Results.Ok(new { token, expiresAt });
+                },
+                Left: ToHttpError);
+        });
 
         return app;
     }
