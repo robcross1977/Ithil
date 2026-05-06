@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
 
     <PackageId>Ithil.Hosting</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.2</Version>
     <Authors>Ithil Software</Authors>
     <Description>Add Ithil governance to your ASP.NET API. Provides AddIthilHosting() and MapIthilSchema() for exposing source-generated tool schemas to the Ithil Gateway.</Description>
     <PackageTags>mcp;ai;agent;gateway;ithil</PackageTags>
@@ -26,6 +26,27 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Declared as a dependency so consumers get [AgentTool] transitively from one package install. -->
+    <ProjectReference Include="..\Ithil.Attributes\Ithil.Attributes.csproj" />
+    <!-- Build the generator but don't expose it as a compile reference — it is bundled below. -->
+    <ProjectReference Include="..\Ithil.SourceGenerator\Ithil.SourceGenerator.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Bundle the source generator DLL into the NuGet package's analyzers folder. -->
+    <None Include="..\Ithil.SourceGenerator\bin\$(Configuration)\netstandard2.0\Ithil.SourceGenerator.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <!-- Props file explicitly registers the analyzer when the package is installed.
+         NuGet auto-detection of analyzers/dotnet/cs/ is unreliable; the props file is required.
+         buildTransitive covers both direct and transitive consumers, so build is not needed. -->
+    <None Include="build\Ithil.Hosting.props" Pack="true" PackagePath="buildTransitive" />
   </ItemGroup>
 
 </Project>
