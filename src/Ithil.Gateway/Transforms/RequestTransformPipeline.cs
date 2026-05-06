@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using LanguageExt;
@@ -39,7 +40,9 @@ public class RequestTransformPipeline(
 
                 // Redis unavailable under FailClosed → 503 (Service Unavailable).
                 // Any other unhandled exception → 500 (Internal Server Error).
-                context.Response.StatusCode = ex is RedisException ? 503 : 500;
+                var statusCode = ex is RedisException ? 503 : 500;
+                var reason = ex is RedisException ? "dependency unavailable" : "internal error";
+                await ShortCircuitAsync(context, statusCode, reason);
                 await traceNotifier.NotifyAsync(
                     new AgentTraceEvent
                     {
@@ -55,12 +58,31 @@ public class RequestTransformPipeline(
         );
     }
 
+    /// <summary>
+    /// Writes a minimal JSON error body and completes the response so YARP detects
+    /// <see cref="HttpResponse.HasStarted"/> and skips proxying. Setting the status code
+    /// alone is not enough — YARP will still forward the request, and the upstream's
+    /// response will overwrite the status set here.
+    /// </summary>
+    private static async Task ShortCircuitAsync(HttpContext context, int statusCode, string reason)
+    {
+        if (context.Response.HasStarted) return;
+
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new { error = reason });
+        context.Response.ContentLength = payload.Length;
+        await context.Response.Body.WriteAsync(payload, context.RequestAborted);
+        await context.Response.CompleteAsync();
+    }
+
     private async Task<Unit> RunChecksAsync(HttpContext context)
     {
         var identity = await identityService.ResolveAgentAsync(context);
         if (identity.IsNone)
         {
-            context.Response.StatusCode = 401;
+            await ShortCircuitAsync(context, 401, "unauthorized");
             await traceNotifier.NotifyAsync(
                 new AgentTraceEvent
                 {
@@ -88,7 +110,7 @@ public class RequestTransformPipeline(
         var isWithinBudget = await budgetEngine.IsWithinBudgetAsync(agentId);
         if (!isWithinBudget)
         {
-            context.Response.StatusCode = 429;
+            await ShortCircuitAsync(context, 429, "budget exceeded");
             await traceNotifier.NotifyAsync(
                 new AgentTraceEvent
                 {
@@ -116,7 +138,7 @@ public class RequestTransformPipeline(
 
         if (!isToolAllowed)
         {
-            context.Response.StatusCode = 403;
+            await ShortCircuitAsync(context, 403, "tool not allowed");
             await traceNotifier.NotifyAsync(
                 new AgentTraceEvent
                 {
@@ -162,7 +184,7 @@ public class RequestTransformPipeline(
                 agentScopes.Exists(a => string.Equals(a, s, StringComparison.OrdinalIgnoreCase)));
             if (!hasAllScopes)
             {
-                context.Response.StatusCode = 403;
+                await ShortCircuitAsync(context, 403, "insufficient scopes");
                 await traceNotifier.NotifyAsync(
                     new AgentTraceEvent
                     {
