@@ -15,7 +15,7 @@ public sealed class AgentToolAttribute(string description) : Attribute
     /// <summary>The human-readable description of what this tool does.</summary>
     public string Description { get; } = description;
 
-    /// <summary>OAuth scopes the calling agent must have to invoke this tool.</summary>
+    /// <summary>Optional OAuth scopes the calling agent must have to invoke this tool.</summary>
     public string[]? RequiredScopes { get; set; }
 
     /// <summary>Whether this tool is allowed to perform write operations. Defaults to false.</summary>
@@ -24,6 +24,6 @@ public sealed class AgentToolAttribute(string description) : Attribute
     /// <summary>Maximum number of tokens this tool is allowed to return. Defaults to 2000.</summary>
     public int MaxResponseTokens { get; set; } = 2000;
 
-    /// <summary>Grouping category for display in the dashboard tool library.</summary>
+    /// <summary>Optional grouping category for display in the dashboard tool library.</summary>
     public string? Category { get; set; }
 }
