@@ -171,12 +171,12 @@ public class EmbeddingService : IEmbeddingService, IDisposable
     /// also known as Euclidean distance — sqrt of sum of squares, which is Pythagoras
     /// generalised to 384 dimensions instead of 2).
     ///
-    /// We do this because Redis finds similar vectors by measuring the angle between them —
-    /// "cosine similarity": 1.0 means identical direction, 0.0 means completely unrelated.
-    /// When all vectors are already unit length, that angle calculation simplifies to a plain
-    /// dot product (multiply matching numbers together and sum them), which is what Redis
-    /// actually computes. Without normalization, two identical phrases that happened to produce
-    /// slightly different-magnitude vectors would look less similar than they really are.
+    /// We do this because Redis compares vectors using cosine distance/similarity — based on
+    /// the angle between them. For unit-length vectors, cosine similarity is numerically the
+    /// same as the dot product (multiply matching numbers together and sum them), so
+    /// normalization makes those comparisons consistent. Without normalization, two identical
+    /// phrases that happened to produce slightly different-magnitude vectors would look less
+    /// similar than they really are.
     /// </summary>
     internal static float[] L2Normalize(float[] vector)
     {
