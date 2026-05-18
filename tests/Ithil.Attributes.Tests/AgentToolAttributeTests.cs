@@ -59,7 +59,7 @@ public class AgentToolAttributeTests
     }
 
     [Fact]
-    public void MaxResponseTokensCanBeOverriden()
+    public void MaxResponseTokensCanBeOverridden()
     {
         var attribute = new AgentToolAttribute("a description")
         {
@@ -70,7 +70,7 @@ public class AgentToolAttributeTests
     }
 
     [Fact]
-    public void AttributeTargetsAreMethodAndClass()
+    public void AttributeTargetIsMethodOnly()
     {
         var usage = typeof(AgentToolAttribute)
             .GetCustomAttributes(typeof(AttributeUsageAttribute), false)
@@ -78,6 +78,28 @@ public class AgentToolAttributeTests
             .Single();
 
         usage.ValidOn.Should().HaveFlag(AttributeTargets.Method);
-        usage.ValidOn.Should().HaveFlag(AttributeTargets.Class);
+        usage.ValidOn.Should().NotHaveFlag(AttributeTargets.Class);
+    }
+
+    [Fact]
+    public void AllowMultipleIsFalse()
+    {
+        var usage = typeof(AgentToolAttribute)
+            .GetCustomAttributes(typeof(AttributeUsageAttribute), false)
+            .Cast<AttributeUsageAttribute>()
+            .Single();
+
+        usage.AllowMultiple.Should().BeFalse();
+    }
+
+    [Fact]
+    public void InheritedIsFalse()
+    {
+        var usage = typeof(AgentToolAttribute)
+            .GetCustomAttributes(typeof(AttributeUsageAttribute), false)
+            .Cast<AttributeUsageAttribute>()
+            .Single();
+
+        usage.Inherited.Should().BeFalse();
     }
 }

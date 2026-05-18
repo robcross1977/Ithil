@@ -74,7 +74,7 @@ public class BudgetEngineTests {
     }
 
     [Fact]
-    public async Task IsWithinBudget_ReturnsZero_WhenKeyNotFound()
+    public async Task GetUsage_ReturnsZero_WhenKeyNotFound()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)RedisValue.Null);
 
@@ -84,14 +84,56 @@ public class BudgetEngineTests {
     }
 
     [Fact]
-    public async Task IsWithinBudget_FailsOpen_WhenRedisThrows()
+    public async Task GetUsage_ReturnsActualUsage_WhenKeyExists()
     {
-        _redis.StringGetAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+        _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)7_500);
 
-        var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
+        var result = await CreateEngine().GetUsageAsync("agent-01");
 
-        result.Should().BeTrue();
+        result.Should().Be(7_500);
+    }
+
+    [Fact]
+    public async Task ResetUsage_DeletesCorrectKey()
+    {
+        var expectedKey = BudgetKeyFactory.ForToday("agent-01");
+
+        await CreateEngine().ResetUsageAsync("agent-01", TestContext.Current.CancellationToken);
+
+        await _redis.Received(1).KeyDeleteAsync(expectedKey);
+    }
+
+    [Fact]
+    public async Task IsWithinBudget_ThrowsOperationCanceled_WhenTokenCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => CreateEngine().IsWithinBudgetAsync("agent-01", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task RecordUsage_ThrowsOperationCanceled_WhenTokenCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => CreateEngine().RecordUsageAsync("agent-01", 100, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ResetUsage_ThrowsOperationCanceled_WhenTokenCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => CreateEngine().ResetUsageAsync("agent-01", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
 }

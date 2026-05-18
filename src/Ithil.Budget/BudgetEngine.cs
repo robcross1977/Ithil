@@ -37,13 +37,21 @@ public class BudgetEngine(
 
     /// <summary>
     /// Increments the agent's token usage and sets a 48-hour expiry on the key.
+    /// When Redis is unavailable: logs and returns silently if FailOpen, throws if FailClosed.
     /// </summary>
     public async Task RecordUsageAsync(string agentId, int tokens, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var key = BudgetKeyFactory.ForToday(agentId);
-        await _redis.StringIncrementAsync(key, tokens);
-        await _redis.KeyExpireAsync(key, TimeSpan.FromDays(2));
+        try
+        {
+            var key = BudgetKeyFactory.ForToday(agentId);
+            await _redis.StringIncrementAsync(key, tokens);
+            await _redis.KeyExpireAsync(key, TimeSpan.FromDays(2));
+        }
+        catch (RedisException ex) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
+        {
+            _logger.LogWarning(ex, "Redis unavailable for agent {AgentId}; failing open on RecordUsage", agentId);
+        }
     }
 
     /// <summary>
@@ -57,12 +65,20 @@ public class BudgetEngine(
 
     /// <summary>
     /// Deletes today's usage key, effectively resetting the agent's token count to zero.
+    /// When Redis is unavailable: logs and returns silently if FailOpen, throws if FailClosed.
     /// </summary>
     public async Task ResetUsageAsync(string agentId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var key = BudgetKeyFactory.ForToday(agentId);
-        await _redis.KeyDeleteAsync(key);
+        try
+        {
+            var key = BudgetKeyFactory.ForToday(agentId);
+            await _redis.KeyDeleteAsync(key);
+        }
+        catch (RedisException ex) when (_options.FailurePolicy == RedisFailurePolicy.FailOpen)
+        {
+            _logger.LogWarning(ex, "Redis unavailable for agent {AgentId}; failing open on ResetUsage", agentId);
+        }
     }
 
     // Reads usage from Redis and wraps it in Option<int>.

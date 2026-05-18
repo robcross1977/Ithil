@@ -26,4 +26,25 @@ public class BudgetKeyFactoryTests
 
         today.Should().NotBe(yesterday);
     }
+
+    [Fact]
+    public void ForDate_ProducesExactFormat()
+    {
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+
+        var key = BudgetKeyFactory.ForDate("agent-01", date);
+
+        key.Should().Be("budget:agent-01:20240115");
+    }
+
+    [Fact]
+    public void ForDate_DifferentAgents_SameDate_ProduceDifferentKeys()
+    {
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+
+        var keyA = BudgetKeyFactory.ForDate("agent-01", date);
+        var keyB = BudgetKeyFactory.ForDate("agent-02", date);
+
+        keyA.Should().NotBe(keyB);
+    }
 }

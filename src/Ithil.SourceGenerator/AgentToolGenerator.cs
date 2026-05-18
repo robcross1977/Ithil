@@ -24,6 +24,16 @@ public class AgentToolGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    // ITHIL002 fires when a public [AgentTool] method has an empty or whitespace description.
+    // An empty description produces a tool that an agent cannot meaningfully understand or invoke.
+    private static readonly DiagnosticDescriptor EmptyDescriptionWarning = new(
+        id: "ITHIL002",
+        title: "Empty AgentTool description",
+        messageFormat: "Method '{0}' has [AgentTool] with an empty description. It will not be included in the schema registry.",
+        category: "Ithil",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     // Initialize is called once by Roslyn to set up the generator pipeline.
     // Nothing runs here — we're just declaring what to watch for and what to do when we find it.
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -60,7 +70,26 @@ public class AgentToolGenerator : IIncrementalGenerator
                         m.Method.Name));
             });
 
-        // Pipeline branch 2: extract metadata from public methods and generate the registry.
+        // Pipeline branch 2: fire ITHIL002 for public methods with an empty or whitespace description.
+        // These are excluded from the registry — a tool with no description cannot be understood by an agent.
+        context.RegisterSourceOutput(
+            allAnnotatedMethods
+                .Where(m => m!.Method.DeclaredAccessibility == Accessibility.Public
+                         && string.IsNullOrWhiteSpace(
+                                m.Attribute.ConstructorArguments.Length > 0
+                                    ? m.Attribute.ConstructorArguments[0].Value?.ToString()
+                                    : null))
+                .Collect(),
+            (ctx, methods) =>
+            {
+                foreach (var m in methods)
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        EmptyDescriptionWarning,
+                        m!.Method.Locations.FirstOrDefault() ?? Location.None,
+                        m.Method.Name));
+            });
+
+        // Pipeline branch 3: extract metadata from public methods and generate the registry.
         // .Collect() batches all found methods so we can write a single output file.
         var tools = allAnnotatedMethods
             .Where(m => m!.Method.DeclaredAccessibility == Accessibility.Public)
@@ -86,6 +115,9 @@ public class AgentToolGenerator : IIncrementalGenerator
         var description = attribute.ConstructorArguments.Length > 0
             ? attribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty
             : string.Empty;
+
+        // Empty descriptions are caught by the ITHIL002 pipeline branch and suppressed here.
+        if (string.IsNullOrWhiteSpace(description)) return null;
 
         var allowWrite = GetNamedBool(attribute, "AllowWrite");
         var maxTokens = GetNamedInt(attribute, "MaxResponseTokens", 2000);

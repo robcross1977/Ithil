@@ -8,10 +8,9 @@ namespace Ithil.Attributes;
 /// Marks a method or class as an MCP-callable tool with the given description.
 /// </remarks>
 /// <param name="description">Human-readable description of what this tool does.</param>
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
 public sealed class AgentToolAttribute(string description) : Attribute
 {
-
     /// <summary>The human-readable description of what this tool does.</summary>
     public string Description { get; } = description;
 
