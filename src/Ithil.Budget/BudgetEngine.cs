@@ -70,6 +70,7 @@ public class BudgetEngine(
     public async Task ResetUsageAsync(string agentId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             var key = BudgetKeyFactory.ForToday(agentId);

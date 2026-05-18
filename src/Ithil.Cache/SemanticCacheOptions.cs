@@ -9,7 +9,7 @@ namespace Ithil.Cache;
 public class SemanticCacheOptions
 {
     /// <summary>
-    /// Minimum cosing similarity score required to count as a cache hit.
+    /// Minimum cosine similarity score required to count as a cache hit.
     /// Range 0.0-1.0. Higher = stricter matching, fewer false hits.
     /// Default 0.95 is conservative - wrong cached data is worse than a miss.
     /// </summary>
@@ -17,7 +17,7 @@ public class SemanticCacheOptions
 
     /// <summary>
     /// How long a cached entry lives in Redis before expiring.
-    /// Default 15 minutes - suitable for frequently-read but occassionally-changing data.
+    /// Default 15 minutes - suitable for frequently-read but occasionally-changing data.
     /// </summary>
     public TimeSpan DefaultTtl { get; set; } = TimeSpan.FromMinutes(15);
 
@@ -28,7 +28,7 @@ public class SemanticCacheOptions
     public string ModelPath { get; set; } = "models/all-MiniLM-L6-v2.onnx";
 
     /// <summary>
-    /// File path to the vocabulary file used be the BERT tokenizer.
+    /// File path to the vocabulary file used by the BERT tokenizer.
     /// Must match the tokenizer the ONNX model was trained with.
     /// </summary>
     public string VocabPath { get; set; } = "models/vocab.txt";

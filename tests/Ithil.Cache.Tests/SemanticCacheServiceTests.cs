@@ -63,18 +63,6 @@ public class SemanticCacheServiceTests
     }
 
     [Fact]
-    public async Task TryGet_ReturnsNone_WhenRedisThrows()
-    {
-        _embedder.EmbedAsync(Arg.Any<string>()).Returns(TestVector);
-        _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
-
-        var result = await CreateService().TryGetAsync("GetInventory", new { productId = 1 });
-
-        result.IsNone.Should().BeTrue();
-    }
-
-    [Fact]
     public async Task TryGet_ReturnsNone_WhenEmbeddingServiceThrows()
     {
         _embedder.EmbedAsync(Arg.Any<string>())
@@ -86,7 +74,39 @@ public class SemanticCacheServiceTests
     }
 
     [Fact]
-    public async Task SetAsync_WritesToRedis_WithCorrectTtl()
+    public async Task TryGet_ReturnsSome_WhenSimilarityExactlyAtThreshold()
+    {
+        // The guard is `similarity < threshold`, so equality is a hit, not a miss.
+        _embedder.EmbedAsync(Arg.Any<string>()).Returns(TestVector);
+        _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
+            .Returns(BuildRedisResult("{\"quantity\":42}", distance: 0.05f)); // 1 - 0.05 = 0.95
+
+        var result = await CreateService(threshold: 0.95f).TryGetAsync("GetInventory", new { productId = 1 });
+
+        result.IsSome.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task TryGet_ReturnsNone_WhenResultCountIsZero()
+    {
+        // FT.SEARCH can return a structurally valid 3-element array where the count field is 0.
+        // This exercises the (long)items[0] == 0 guard specifically.
+        _embedder.EmbedAsync(Arg.Any<string>()).Returns(TestVector);
+        _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
+            .Returns(RedisResult.Create(
+            [
+                RedisResult.Create(0L),
+                RedisResult.Create((RedisKey)""),
+                RedisResult.Create(Array.Empty<RedisResult>())
+            ]));
+
+        var result = await CreateService().TryGetAsync("GetInventory", new { productId = 1 });
+
+        result.IsNone.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SetAsync_CallsHSetAndExpire_WithCorrectTtl()
     {
         _embedder.EmbedAsync(Arg.Any<string>()).Returns(TestVector);
         _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>()).Returns(RedisResult.Create((RedisKey)"OK"));
@@ -94,8 +114,22 @@ public class SemanticCacheServiceTests
         var ttl = TimeSpan.FromMinutes(15);
         await CreateService().SetAsync("GetInventory", new { productId = 1 }, new { quantity = 42 }, ttl);
 
-        // HSET + EXPIRE should both have been called.
-        await _redis.Received().ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>());
+        await _redis.Received(1).ExecuteAsync("HSET", Arg.Any<object[]>());
+        await _redis.Received(1).ExecuteAsync("EXPIRE",
+            Arg.Is<object[]>(args => args.Length == 2 && (long)args[1] == (long)ttl.TotalSeconds));
+    }
+
+    [Fact]
+    public async Task SetAsync_DoesNotThrow_WhenRedisThrows()
+    {
+        // Write failures are always swallowed — a failed cache write must never fail the request.
+        _embedder.EmbedAsync(Arg.Any<string>()).Returns(TestVector);
+        _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+
+        var act = () => CreateService().SetAsync("GetInventory", new { productId = 1 }, new { quantity = 42 }, TimeSpan.FromMinutes(15));
+
+        await act.Should().NotThrowAsync();
     }
 
     // Builds a mock FT.SEARCH result with one hit.
