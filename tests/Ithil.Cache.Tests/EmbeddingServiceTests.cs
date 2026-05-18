@@ -6,8 +6,9 @@ namespace Ithil.Cache.Tests;
 
 /// <summary>
 /// Tests for the internal pure-math helpers in EmbeddingService.
-/// The full EmbedAsync pipeline requires real ONNX model files on disk so cannot
-/// be unit tested here — it is exercised via integration tests using StubEmbeddingService.
+/// The full ONNX-backed EmbedAsync pipeline requires real model files on disk and
+/// is not unit tested here. Integration tests that use StubEmbeddingService cover
+/// higher-level wiring only, not the real tokenizer/model execution path.
 /// </summary>
 public class EmbeddingServiceTests
 {
