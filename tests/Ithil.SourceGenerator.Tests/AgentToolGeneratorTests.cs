@@ -18,7 +18,7 @@ public class AgentToolGeneratorTests
     private const string AttributeSource = """
         namespace Ithil.Attributes
         {
-            [System.AttributeUsage(System.AttributeTargets.Method | System.AttributeTargets.Class)]
+            [System.AttributeUsage(System.AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
             public sealed class AgentToolAttribute : System.Attribute
             {
                 public AgentToolAttribute(string description) { Description = description; }
@@ -578,6 +578,54 @@ public class AgentToolGeneratorTests
 
         source.Should().Contain("{ \"payload\", \"body\" }");
         source.Should().Contain("{ \"payload\", \"object\" }");
+    }
+
+    [Fact]
+    public void EmptyDescription_EmitsITHIL002Warning()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, diagnostics, _) = RunGenerator(code);
+
+        diagnostics.Should().Contain(d => d.Severity == DiagnosticSeverity.Warning && d.Id == "ITHIL002");
+    }
+
+    [Fact]
+    public void WhitespaceDescription_EmitsITHIL002Warning()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("   ")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, diagnostics, _) = RunGenerator(code);
+
+        diagnostics.Should().Contain(d => d.Severity == DiagnosticSeverity.Warning && d.Id == "ITHIL002");
+    }
+
+    [Fact]
+    public void EmptyDescription_ExcludedFromSchemaRegistry()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("")]
+                public void GetInventory() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().NotContain("new ToolEntry");
     }
 
     [Fact]
