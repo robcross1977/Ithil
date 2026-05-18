@@ -1,11 +1,11 @@
 namespace Ithil.Attributes;
 
 /// <summary>
-/// Marks a controller method or class as an MCP-callable tool.
+/// Marks a controller method as an MCP-callable tool.
 /// The Source Generator reads this attribute at compile time to build the tool manifest.
 /// </summary>
 /// <remarks>
-/// Marks a method or class as an MCP-callable tool with the given description.
+/// Marks a method as an MCP-callable tool with the given description.
 /// </remarks>
 /// <param name="description">Human-readable description of what this tool does.</param>
 [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
