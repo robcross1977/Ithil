@@ -9,20 +9,19 @@ namespace Ithil.Cache;
 /// </summary>
 public static class IntentSerializer
 {
-    // JsonSerializerOptions is expensive to contruct - create once and reuse.
+    // JsonSerializerOptions is expensive to construct — create once and reuse.
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        // Sort dictionary keys alphabetically so parameter order doesn't matter.
-        // Without this, {"a":1,"b":2} and {"b":2,"a":1} would produce different
-        // strings and therefore different embeddings, causing a cache miss for
-        // what is semantically the same call. 
+        // Compact output — no line breaks or indentation.
         WriteIndented = false
     };
 
     /// <summary>
     /// Serializes a tool call into a stable intent string of the form:
     /// "ToolName:{"paramA":"value","paramB":42}"
-    /// Parameter keys are sorted alphabetically before serialization.
+    /// Parameter keys are sorted alphabetically at every nesting level before
+    /// serialization, so two calls with identically-valued but differently-ordered
+    /// parameters produce identical strings and therefore identical embeddings.
     /// </summary>
     public static string Serialize(string toolName, object parameters)
     {
@@ -34,15 +33,29 @@ public static class IntentSerializer
         if (doc.RootElement.ValueKind != JsonValueKind.Object)
             return $"{toolName}:{json}";
 
-        // Rebuild the parameters dictionary with keys sorted alphabetically.
-        // This ensures {"warehouseId":"UK-01","productId":42} produces the same
-        // intent string as {"productId":42,"warehouseId":"UK-01"}.
-        var sorted = doc.RootElement.EnumerateObject()
-            .OrderBy(p => p.Name, StringComparer.Ordinal)
-            .ToDictionary(p => p.Name, p => p.Value);
-
-        var sortedJson = JsonSerializer.Serialize(sorted, SerializerOptions);
+        // Recursively rebuild the parameters with all object keys sorted alphabetically.
+        // This handles nested objects — e.g. {address:{zip:"EC1",city:"London"}} —
+        // where a top-level-only sort would leave inner keys in insertion order.
+        var sortedJson = JsonSerializer.Serialize(SortObjectKeys(doc.RootElement), SerializerOptions);
         return $"{toolName}:{sortedJson}";
     }
+
+    // Rebuilds a JSON Object as a sorted Dictionary, recursively processing any
+    // nested Object or Array values so that key ordering is stable at every level.
+    private static Dictionary<string, object?> SortObjectKeys(JsonElement obj) =>
+        obj.EnumerateObject()
+            .OrderBy(p => p.Name, StringComparer.Ordinal)
+            .ToDictionary(p => p.Name, p => SortElementValue(p.Value));
+
+    // Returns a stable representation of any JSON value:
+    // - Objects    → sorted Dictionary (recurse into nested keys)
+    // - Arrays     → array with each element recursively stabilised (order preserved)
+    // - Primitives → the JsonElement itself, which serializes verbatim
+    private static object? SortElementValue(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => SortObjectKeys(element),
+        JsonValueKind.Array  => element.EnumerateArray().Select(SortElementValue).ToArray(),
+        _                    => (object?)element
+    };
 }
 
