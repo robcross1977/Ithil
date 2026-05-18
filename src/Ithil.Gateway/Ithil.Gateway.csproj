@@ -12,7 +12,6 @@
       the static-asset manifest served by MapStaticAssets().
     -->
     <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
-    <UserSecretsId>3203b01f-8290-43cb-97fe-28e0706febef</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
