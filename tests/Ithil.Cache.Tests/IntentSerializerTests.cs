@@ -62,8 +62,8 @@ public class IntentSerializerTests
     [Fact]
     public void NestedObject_SortsKeysAtAllLevels()
     {
-        // Outer keys: warehouseId > productId alphabetically, so productId comes first.
-        // Inner address keys: zip > city alphabetically, so city comes first.
+        // Outer keys are sorted alphabetically: address, productId, then warehouseId.
+        // Inner address keys are also sorted alphabetically, so city comes before zip.
         var a = IntentSerializer.Serialize("CreateShipment", new
         {
             warehouseId = "UK-01",
