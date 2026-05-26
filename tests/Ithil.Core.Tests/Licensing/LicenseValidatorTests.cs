@@ -137,6 +137,19 @@ public sealed class LicenseValidatorTests : IDisposable
         act.Should().Throw<LicenseException>();
     }
 
+    [Fact]
+    public void Validate_ExpiredJwt_ThrowsLicenseExceptionWithExpiredMessage()
+    {
+        var token = BuildToken("user@example.com", "non-commercial",
+            expires: DateTimeOffset.UtcNow.AddDays(-1));
+        var config = BuildConfig(token);
+
+        var act = () => LicenseValidator.Validate(config, _publicKey);
+
+        act.Should().Throw<LicenseException>()
+            .WithMessage("*expired*");
+    }
+
     // --- helpers ---
 
     private string BuildToken(
@@ -144,7 +157,8 @@ public sealed class LicenseValidatorTests : IDisposable
         string? tier,
         RSA? signingKey = null,
         string issuer = "ithil.software",
-        bool includeJti = true)
+        bool includeJti = true,
+        DateTimeOffset? expires = null)
     {
         var key = new RsaSecurityKey(signingKey ?? _privateKey);
         var claims = new Dictionary<string, object> { ["iss"] = issuer };
@@ -156,6 +170,11 @@ public sealed class LicenseValidatorTests : IDisposable
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Claims = claims,
+            // When building an expired token, set NotBefore/IssuedAt in the past too so the
+            // token has a structurally consistent lifetime (issued → notBefore < expires).
+            NotBefore = expires.HasValue ? expires.Value.AddHours(-1).UtcDateTime : (DateTime?)null,
+            IssuedAt  = expires.HasValue ? expires.Value.AddHours(-1).UtcDateTime : (DateTime?)null,
+            Expires   = expires?.UtcDateTime,
             SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.RsaSha256),
         });
     }

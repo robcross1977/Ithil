@@ -19,7 +19,7 @@ public record McpToolDefinition
     public required string Description { get; init; }
     
     /// <summary>
-    /// Whether this tool is allowoed to perform write operations.
+    /// Whether this tool is allowed to perform write operations.
     /// </summary>
     public bool AllowWrite { get; init; }
     

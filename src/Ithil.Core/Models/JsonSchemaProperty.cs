@@ -11,7 +11,7 @@ public record JsonSchemaProperty
     public required string Type { get; init; }
 
     /// <summary>
-    /// Human-readable descrpition of what this property represents.
+    /// Human-readable description of what this property represents.
     /// </summary>
     public string? Description { get; init; }
 }

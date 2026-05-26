@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 namespace Ithil.Core.Interfaces;
 
 /// <summary>
-/// Resolves an agent identity from an incomoing HTTP request.
+/// Resolves an agent identity from an incoming HTTP request.
 /// </summary>
 public interface IAgentIdentityService
 {

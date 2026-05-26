@@ -28,15 +28,15 @@ public record AgentTraceEvent
     /// <summary>
     /// ISO 8601 UTC timestamp of when the event was fired.
     /// </summary>
-    public required string Timestamp { get; set; }
+    public required string Timestamp { get; init; }
 
     /// <summary>
     /// Error message if status is "error". Null otherwise.
     /// </summary>
-    public string? ErrorMessage { get; set; }
+    public string? ErrorMessage { get; init; }
 
     /// <summary>
-    /// How long the request took in milliseconods.
+    /// How long the request took in milliseconds.
     /// </summary>
     public long? LatencyMs { get; init; }
 
