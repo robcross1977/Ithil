@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using StackExchange.Redis;
 
 namespace Ithil.Budget.Tests;
@@ -16,7 +15,7 @@ public class BudgetEngineTests {
     [Fact]
     public async Task IsWithinBudget_ReturnsTrue_WhenNoUsageToday()
     {
-        _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)RedisValue.Null);
+        _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns(RedisValue.Null);
 
         var result = await CreateEngine().IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
 
@@ -76,7 +75,7 @@ public class BudgetEngineTests {
     [Fact]
     public async Task GetUsage_ReturnsZero_WhenKeyNotFound()
     {
-        _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns((RedisValue)RedisValue.Null);
+        _redis.StringGetAsync(Arg.Any<RedisKey>()).Returns(RedisValue.Null);
 
         var result = await CreateEngine().GetUsageAsync("agent-01");
 

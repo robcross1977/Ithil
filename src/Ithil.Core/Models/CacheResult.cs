@@ -12,8 +12,8 @@ public record CacheResult
     public required string SerializedResponse { get; init; }
 
     /// <summary>
-    /// Cosine similarity score between the query vector and this entry's vector
-    /// Range: 0.0 (completely different) to 1.0 (identical). Typeically > 0.95 for a cache hit.
+    /// Cosine similarity score between the query vector and this entry's vector.
+    /// Range: 0.0 (completely different) to 1.0 (identical). Typically > 0.95 for a cache hit.
     /// </summary>
     public float Similarity { get; init; }
 }
