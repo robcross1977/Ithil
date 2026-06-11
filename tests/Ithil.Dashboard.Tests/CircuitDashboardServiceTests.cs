@@ -37,4 +37,56 @@ public class CircuitDashboardServiceTests
         result.State.Should().Be(CircuitState.HalfOpen);
         result.State.Should().NotBe(CircuitState.Open);
     }
+
+    [Fact]
+    public void CircuitDashboardService_MapsOpenState()
+    {
+        var service = new CircuitDashboardService();
+        service.UpdateState(MakeEvent("open"));
+
+        service.GetAll().Single().State.Should().Be(CircuitState.Open);
+    }
+
+    [Fact]
+    public void CircuitDashboardService_GetAll_EmptyInitially()
+    {
+        var service = new CircuitDashboardService();
+
+        service.GetAll().IsEmpty.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CircuitDashboardService_NoOpForNullCircuitState()
+    {
+        var service = new CircuitDashboardService();
+        service.UpdateState(new AgentTraceEvent
+        {
+            TraceId = "t1", AgentId = "agent-1", ToolName = "GetStock",
+            Status = "success", Timestamp = DateTime.UtcNow.ToString("O"),
+            CircuitState = null
+        });
+
+        service.GetAll().IsEmpty.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CircuitDashboardService_NoOpForUnknownCircuitState()
+    {
+        var service = new CircuitDashboardService();
+        service.UpdateState(MakeEvent("unknown-state"));
+
+        service.GetAll().IsEmpty.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CircuitDashboardService_OverwritesPreviousStateForSameAgentAndTool()
+    {
+        var service = new CircuitDashboardService();
+        service.UpdateState(MakeEvent("open"));
+        service.UpdateState(MakeEvent("closed"));
+
+        var all = service.GetAll();
+        all.Should().HaveCount(1);
+        all.Single().State.Should().Be(CircuitState.Closed);
+    }
 }

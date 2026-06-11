@@ -62,4 +62,26 @@ public class TraceFeedServiceTests
         all.Should().NotContain(e => e.TraceId == "oldest");
         all.Should().Contain(e => e.TraceId == "newest");
     }
+
+    [Fact]
+    public void TraceFeedService_GetIdentified_WithNoFilter_ReturnsAllIdentifiedEvents()
+    {
+        var service = CreateService();
+        service.Add(MakeEvent("agent-1", "t1"));
+        service.Add(MakeEvent("agent-2", "t2"));
+        service.Add(MakeEvent(string.Empty, "t3")); // unidentified — excluded
+
+        service.GetIdentified().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void TraceFeedService_NewestEventsAreAtFront()
+    {
+        var service = CreateService();
+        service.Add(MakeEvent("agent-1", "first"));
+        service.Add(MakeEvent("agent-1", "second"));
+        service.Add(MakeEvent("agent-1", "third"));
+
+        service.GetIdentified().First().TraceId.Should().Be("third");
+    }
 }

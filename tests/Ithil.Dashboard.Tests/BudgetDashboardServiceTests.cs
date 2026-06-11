@@ -55,4 +55,27 @@ public class BudgetDashboardServiceTests
 
         result.IfSome(vm => vm.IsWarning.Should().BeTrue());
     }
+
+    [Fact]
+    public async Task BudgetDashboardService_IsWarning_AtExactThreshold()
+    {
+        // The threshold is >= 80.0, so exactly 80.0 should trigger the warning.
+        _budgetQueryService.GetStatusAsync("agent-1")
+            .Returns(Either<ManagementError, BudgetStatusResponse>.Right(BuildResponse("agent-1", 80.0)));
+
+        var result = await CreateService().GetAsync("agent-1", "Agent One");
+
+        result.IfSome(vm => vm.IsWarning.Should().BeTrue());
+    }
+
+    [Fact]
+    public async Task BudgetDashboardService_IsNotWarning_WhenJustBelowThreshold()
+    {
+        _budgetQueryService.GetStatusAsync("agent-1")
+            .Returns(Either<ManagementError, BudgetStatusResponse>.Right(BuildResponse("agent-1", 79.9)));
+
+        var result = await CreateService().GetAsync("agent-1", "Agent One");
+
+        result.IfSome(vm => vm.IsWarning.Should().BeFalse());
+    }
 }

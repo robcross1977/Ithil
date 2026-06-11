@@ -46,4 +46,41 @@ public class AgentDashboardServiceTests
 
         result.IsNone.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task AgentDashboardService_GetAll_DelegatesToManagementService()
+    {
+        _agentManagementService.GetAllAsync()
+            .Returns(Either<ManagementError, Seq<AgentResponse>>.Right(Seq<AgentResponse>.Empty));
+
+        var result = await CreateService().GetAllAsync();
+
+        result.IsRight.Should().BeTrue();
+        await _agentManagementService.Received(1).GetAllAsync();
+    }
+
+    [Fact]
+    public async Task AgentDashboardService_Create_WhenServiceReturnsLeft_ReturnsLeft()
+    {
+        var request = new CreateAgentRequest { Label = "X", DailyTokenBudget = 1_000 };
+        _agentManagementService.CreateAsync(request)
+            .Returns(Either<ManagementError, CreateAgentResponse>.Left(
+                new ManagementError.Invalid("Label too short")));
+
+        var result = await CreateService().CreateAsync(request);
+
+        result.IsLeft.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AgentDashboardService_Delete_WhenServiceReturnsUnexpectedError_ReturnsSomeError()
+    {
+        _agentManagementService.DeleteAsync("agent-1")
+            .Returns(Either<ManagementError, Unit>.Left(
+                new ManagementError.Invalid("Something unexpected")));
+
+        var result = await CreateService().DeleteAsync("agent-1");
+
+        result.IsSome.Should().BeTrue();
+    }
 }
