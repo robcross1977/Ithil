@@ -69,6 +69,32 @@ public class TraceNotifierTests
     }
 
     [Fact]
+    public async Task NotifyAsync_NotifiesSubscriptionManager()
+    {
+        var evt = MakeEvent();
+        await CreateNotifier().NotifyAsync(evt, TestContext.Current.CancellationToken);
+
+        _subscriptionManager.Received(1).NotifyAll(evt);
+    }
+
+    [Fact]
+    public async Task NotifyAsync_NotifiesSubscriptionManager_EvenWhenSignalRThrows()
+    {
+        // buffer.Add and subscriptionManager.NotifyAll are in the `finally` block,
+        // so they must run even if the SignalR broadcast fails.
+        _clientProxy
+            .SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("SignalR unavailable")));
+
+        var evt = MakeEvent();
+        try { await CreateNotifier().NotifyAsync(evt, TestContext.Current.CancellationToken); }
+        catch { /* expected — SignalR threw */ }
+
+        _subscriptionManager.Received(1).NotifyAll(evt);
+        _buffer.Received(1).Add(evt);
+    }
+
+    [Fact]
     public void AgentTraceEvent_Timestamp_IsUtcIso8601()
     {
         var evt = new AgentTraceEvent
