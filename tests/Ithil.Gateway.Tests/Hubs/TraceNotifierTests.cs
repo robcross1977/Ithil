@@ -87,8 +87,8 @@ public class TraceNotifierTests
             .Returns(Task.FromException(new InvalidOperationException("SignalR unavailable")));
 
         var evt = MakeEvent();
-        try { await CreateNotifier().NotifyAsync(evt, TestContext.Current.CancellationToken); }
-        catch { /* expected — SignalR threw */ }
+        var act = () => CreateNotifier().NotifyAsync(evt, TestContext.Current.CancellationToken);
+        await act.Should().ThrowAsync<InvalidOperationException>();
 
         _subscriptionManager.Received(1).NotifyAll(evt);
         _buffer.Received(1).Add(evt);
