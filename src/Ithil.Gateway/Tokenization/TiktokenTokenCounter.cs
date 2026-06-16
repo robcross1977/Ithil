@@ -4,7 +4,7 @@ using Microsoft.ML.Tokenizers;
 namespace Ithil.Gateway.Tokenization;
 
 /// <summary>
-/// Counts tokens using the cl1000k_base BPE tokenizer (OpenAI GPT-4/3.5).
+/// Counts tokens using the cl100k_base BPE tokenizer (OpenAI GPT-4/3.5).
 /// Accurate for GPT-family models. For Claude traffic this is an approximation -
 /// Anthropic has not published a standalone Claude tokenizer. Counts will be close
 /// but should not be treated as authoritative billing figures for Claude models.
