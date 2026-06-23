@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using FluentAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Management.Audit;
@@ -41,6 +42,24 @@ public class AuditBackgroundWorkerTests
 
         // Assert: all 3 pre-queued records were drained to the sink.
         await sink.Received(3).WriteAsync(Arg.Any<AuditRecord>());
+    }
+
+    [Fact]
+    public async Task AuditBackgroundWorker_DoesNotThrow_WhenNoSinksRegistered()
+    {
+        // When no sinks are configured the worker writes a warning to stderr and
+        // discards the record. We verify it doesn't crash, using the cancellation-drain
+        // path so the record is processed synchronously and deterministically.
+        var channel = Channel.CreateUnbounded<AuditRecord>();
+        await channel.Writer.WriteAsync(BuildRecord("r-lost"), TestContext.Current.CancellationToken);
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var worker = new TestWorker(channel, []);
+        var act = async () => await worker.RunAsync(cts.Token);
+
+        await act.Should().NotThrowAsync();
     }
 
     private static AuditRecord BuildRecord(string traceId) => new()

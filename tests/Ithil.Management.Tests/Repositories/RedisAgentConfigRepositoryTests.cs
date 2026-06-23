@@ -123,6 +123,24 @@ public class RedisAgentConfigRepositoryTests
     }
 
     [Fact]
+    public async Task RedisAgentConfigRepository_GetAll_SkipsCorruptEntries()
+    {
+        // The repository catches JsonException and InvalidOperationException
+        // per entry so one bad Redis value cannot break the whole GetAll call.
+        var goodConfig = BuildConfig("agent-good", "Survivor");
+        _db.HashGetAllAsync(Arg.Any<RedisKey>()).Returns(new[]
+        {
+            new HashEntry("agent-good", BuildJson(goodConfig)),
+            new HashEntry("agent-bad", "not-valid-json"),
+        });
+
+        var result = await _repo.GetAllAsync();
+
+        result.Should().HaveCount(1);
+        result.Single().AgentId.Should().Be("agent-good");
+    }
+
+    [Fact]
     public async Task RedisAgentConfigRepository_Delete_RemovesAgent_FromGetAll()
     {
         var survivor = BuildConfig("agent-2", "Survivor");

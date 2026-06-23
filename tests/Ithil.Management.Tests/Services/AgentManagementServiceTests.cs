@@ -24,6 +24,94 @@ public class AgentManagementServiceTests
     };
 
     [Fact]
+    public async Task Create_ReturnsInvalid_WhenLabelIsWhitespace()
+    {
+        var result = await CreateService().CreateAsync(
+            new CreateAgentRequest { Label = "   ", DailyTokenBudget = 50_000 });
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.Invalid>());
+    }
+
+    [Fact]
+    public async Task Create_GeneratesAgentId_WithAgtPrefix()
+    {
+        // agt_ + 8 random bytes as lowercase hex = 4 + 16 = 20 chars
+        AgentConfig? stored = null;
+        _configs.UpsertAsync(Arg.Do<AgentConfig>(c => stored = c)).Returns(Task.CompletedTask);
+        _apiKeys.CreateAsync(Arg.Any<string>()).Returns("ithil_live_key");
+
+        await CreateService().CreateAsync(new CreateAgentRequest { Label = "Agent", DailyTokenBudget = 50_000 });
+
+        stored!.AgentId.Should().StartWith("agt_");
+        stored.AgentId.Should().HaveLength(20);
+    }
+
+    [Fact]
+    public async Task Create_DeletesApiKey_WhenConfigUpsertFails()
+    {
+        // If persisting the agent config fails, the orphaned API key must be removed.
+        const string plainKey = "ithil_live_testkey";
+        _apiKeys.CreateAsync(Arg.Any<string>()).Returns(plainKey);
+        _configs.UpsertAsync(Arg.Any<AgentConfig>()).Returns(Task.FromException(new Exception("DB down")));
+
+        var act = async () => await CreateService().CreateAsync(
+            new CreateAgentRequest { Label = "Finance Agent", DailyTokenBudget = 50_000 });
+
+        await act.Should().ThrowAsync<Exception>();
+        await _apiKeys.Received(1).DeleteAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task GetAll_ReturnsAllAgents()
+    {
+        var configs = LanguageExt.Seq.create(MakeConfig("a1"), MakeConfig("a2"));
+        _configs.GetAllAsync().Returns(configs);
+
+        var result = await CreateService().GetAllAsync();
+
+        result.IsRight.Should().BeTrue();
+        result.IfRight(r => r.Should().HaveCount(2));
+    }
+
+    [Fact]
+    public async Task Update_ReturnsNotFound_WhenAgentNotFound()
+    {
+        _configs.GetAsync("unknown").Returns(Option<AgentConfig>.None);
+
+        var result = await CreateService().UpdateAsync("unknown", new UpdateAgentRequest { Label = "New" });
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.NotFound>());
+    }
+
+    [Fact]
+    public async Task Delete_DeletesApiKey_WhenAgentHasApiKeyHash()
+    {
+        var config = MakeConfig() with { ApiKeyHash = "sha256hashvalue" };
+        _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(config));
+        _configs.DeleteAsync("agt_abc123").Returns(true);
+
+        var result = await CreateService().DeleteAsync("agt_abc123");
+
+        result.IsRight.Should().BeTrue();
+        await _apiKeys.Received(1).DeleteAsync("sha256hashvalue");
+    }
+
+    [Fact]
+    public async Task Delete_DoesNotDeleteApiKey_WhenHashIsNull()
+    {
+        // Agent was created without an API key (e.g. JWT-only agent).
+        var config = MakeConfig() with { ApiKeyHash = null };
+        _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(config));
+        _configs.DeleteAsync("agt_abc123").Returns(true);
+
+        await CreateService().DeleteAsync("agt_abc123");
+
+        await _apiKeys.DidNotReceive().DeleteAsync(Arg.Any<string>());
+    }
+
+    [Fact]
     public async Task Create_ReturnsApiKey_OnSuccess()
     {
         _apiKeys.CreateAsync(Arg.Any<string>()).Returns("ithil_live_testkey");

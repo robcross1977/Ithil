@@ -95,10 +95,11 @@ public sealed class LoginTests(DashboardFixture fixture)
         await _page.Locator("#token").FillAsync(fixture.AdminToken());
         await _page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
 
-        // Clicking Sign out navigates to /dashboard/logout, which issues an HTTP 302
-        // redirect to /dashboard/login. Wait for the redirect to land before asserting.
+        // Start the URL waiter BEFORE clicking so the listener is registered before the
+        // redirect from /dashboard/logout → /dashboard/login can fire and be missed.
+        var navigated = _page.WaitForURLAsync("**/dashboard/login");
         await _page.GetByRole(AriaRole.Link, new() { Name = "Sign out" }).ClickAsync();
-        await _page.WaitForURLAsync("**/dashboard/login");
+        await navigated;
 
         _page.Url.Should().Contain("/dashboard/login");
     }

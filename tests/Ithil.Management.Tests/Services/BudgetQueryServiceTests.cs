@@ -25,6 +25,30 @@ public class BudgetQueryServiceTests
     };
 
     [Fact]
+    public async Task GetStatus_ReturnsNotFound_ForUnknownAgent()
+    {
+        _configs.GetAsync("unknown").Returns(Option<AgentConfig>.None);
+
+        var result = await CreateService().GetStatusAsync("unknown");
+
+        result.IsLeft.Should().BeTrue();
+        result.IfLeft(e => e.Should().BeOfType<ManagementError.NotFound>());
+    }
+
+    [Fact]
+    public async Task GetStatus_ReturnsZeroPercentage_WhenBudgetIsZero()
+    {
+        // Guard against division by zero when DailyTokenBudget is 0.
+        _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(MakeConfig(dailyBudget: 0)));
+        _budget.GetUsageAsync("agt_abc123").Returns(0);
+
+        var result = await CreateService().GetStatusAsync("agt_abc123");
+
+        result.IsRight.Should().BeTrue();
+        result.IfRight(r => r.PercentageUsed.Should().Be(0));
+    }
+
+    [Fact]
     public async Task GetStatus_ReturnsCorrectPercentage()
     {
         _configs.GetAsync("agt_abc123").Returns(Option<AgentConfig>.Some(MakeConfig(50_000)));
