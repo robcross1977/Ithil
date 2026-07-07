@@ -629,6 +629,145 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
+    public void MaxResponseTokens_EmittedCorrectly_WhenSpecified()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc", MaxResponseTokens = 500)]
+                public void GetSummary() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("MaxResponseTokens = 500");
+    }
+
+    [Fact]
+    public void Category_EmittedCorrectly_WhenSpecified()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc", Category = "Orders")]
+                public void GetOrder() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("Category = \"Orders\"");
+    }
+
+    [Fact]
+    public void RequiredScopes_EmittedAsArray_WhenSpecified()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc", RequiredScopes = new[] { "orders:read", "inventory:read" })]
+                public void GetOrder() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("\"orders:read\"");
+        source.Should().Contain("\"inventory:read\"");
+    }
+
+    [Fact]
+    public void RequiredScopes_EmitsEmptyArray_WhenNotSpecified()
+    {
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("desc")]
+                public void GetOrder() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("global::System.Array.Empty<string>()");
+    }
+
+    [Fact]
+    public void DescriptionWithQuotes_IsEscapedInGeneratedCode()
+    {
+        // Quotes in a description must be escaped so the generated C# compiles.
+        var code = """
+            using Ithil.Attributes;
+            public class MyController {
+                [AgentTool("Returns the \"best\" match")]
+                public void GetBest() {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        // The escaped form must appear, not a raw unescaped quote that would break the source.
+        source.Should().Contain("Returns the \\\"best\\\" match");
+    }
+
+    [Fact]
+    public void BoolParameter_EmitsBooleanType()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet]
+                public void SetFlag(bool enabled) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"enabled\", \"boolean\" }");
+    }
+
+    [Fact]
+    public void DecimalParameter_EmitsNumberType()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpPost]
+                public void SetPrice(decimal amount) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"amount\", \"number\" }");
+    }
+
+    [Fact]
+    public void DateTimeParameter_EmitsStringType()
+    {
+        // TypeMapper maps DateTime to JSON Schema type "string" (format "date" is not stored
+        // in the generated ParameterTypes dictionary, only the type string is).
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet]
+                public void GetByDate(System.DateTime date) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"date\", \"string\" }");
+    }
+
+    [Fact]
     public void DuplicateName_RouteParamBeatsExpandedBodyProperty()
     {
         // When a route param name collides with a body-type property name, the route

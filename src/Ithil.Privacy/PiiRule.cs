@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Ithil.Privacy;
 
 /// <summary>
-/// A single PII redation rule consisting of a pre-compiled regex and its replacement string.
+/// A single PII redaction rule consisting of a pre-compiled regex and its replacement string.
 /// </summary>
 /// <remarks>
 /// Creates a rule with the given regex pattern and replacement text.

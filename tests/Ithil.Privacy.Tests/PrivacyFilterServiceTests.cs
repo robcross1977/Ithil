@@ -87,6 +87,45 @@ public class PrivacyFilterTests
     }
 
     [Fact]
+    public async Task Scrub_RedactsAllBuiltInTypes_InSingleString()
+    {
+        // All three built-in rules must fire on the same content in a single pass.
+        var input = "Email: user@corp.com, SSN: 123-45-6789, Card: 4111111111111111";
+        var result = await CreateService().ScrubAsync(ToStream(input), TestContext.Current.CancellationToken);
+
+        result.Should().Contain("[EMAIL REDACTED]");
+        result.Should().Contain("[SSN REDACTED]");
+        result.Should().Contain("[CARD REDACTED]");
+        result.Should().NotContain("@");
+        result.Should().NotContain("123-45-6789");
+        result.Should().NotContain("4111111111111111");
+    }
+
+    [Fact]
+    public async Task Scrub_AppliesMultipleCustomRules_InSequence()
+    {
+        // Custom rules are applied in list order after all built-in rules.
+        var rules = new List<PiiRule>
+        {
+            new("ACME-\\d{6}", "[ACCOUNT REDACTED]"),
+            new("REF-\\d{4}", "[REF REDACTED]"),
+        };
+        var input = "Account: ACME-123456, Reference: REF-9999";
+        var result = await CreateService(rules).ScrubAsync(ToStream(input), TestContext.Current.CancellationToken);
+
+        result.Should().Be("Account: [ACCOUNT REDACTED], Reference: [REF REDACTED]");
+    }
+
+    [Fact]
+    public void PiiRule_ExposesPattern_AndReplacement()
+    {
+        var rule = new PiiRule("\\d{5}", "[ZIP REDACTED]");
+
+        rule.Pattern.Should().Be("\\d{5}");
+        rule.Replacement.Should().Be("[ZIP REDACTED]");
+    }
+
+    [Fact]
     public async Task PiiRule_Apply_ReplacesAllMatches()
     {
         var rule = new PiiRule("\\d{5}", "[ZIP REDACTED]");

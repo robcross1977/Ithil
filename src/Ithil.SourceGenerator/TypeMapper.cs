@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 
 namespace Ithil.SourceGenerator;
 
-///.<summary>
+/// <summary>
 /// Maps C# type symbols to JSON Schema type strings.
 /// </summary>
 public class TypeMapper
