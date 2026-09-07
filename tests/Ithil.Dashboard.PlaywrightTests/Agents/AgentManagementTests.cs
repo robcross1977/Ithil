@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Dashboard.PlaywrightTests.Fixtures;
 using Ithil.Management.Models;
 using Microsoft.Playwright;

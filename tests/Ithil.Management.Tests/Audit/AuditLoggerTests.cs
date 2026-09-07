@@ -4,7 +4,7 @@ using Ithil.Core.Models;
 using Ithil.Management.Audit;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace Ithil.Management.Tests.Audit;
 

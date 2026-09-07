@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Management.Audit;

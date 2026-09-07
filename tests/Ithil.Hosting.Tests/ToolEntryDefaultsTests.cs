@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Hosting;
 
 namespace Ithil.Hosting.Tests;

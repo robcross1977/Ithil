@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Gateway.Identity;
 using LanguageExt;

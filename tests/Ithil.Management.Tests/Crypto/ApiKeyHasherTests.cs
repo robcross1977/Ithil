@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Crypto;
 using System.Security.Cryptography;
 using System.Text;

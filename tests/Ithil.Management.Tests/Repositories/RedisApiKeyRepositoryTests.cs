@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Crypto;
 using Ithil.Management.Repositories;
 using NSubstitute;

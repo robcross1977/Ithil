@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Cache;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;

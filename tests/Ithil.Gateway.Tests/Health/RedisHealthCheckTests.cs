@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Gateway.Health;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NSubstitute;

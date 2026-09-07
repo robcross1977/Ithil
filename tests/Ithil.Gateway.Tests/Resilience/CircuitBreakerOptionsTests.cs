@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Gateway.Resilience;
 
 namespace Ithil.Gateway.Tests.Resilience;

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Budget;
 using Ithil.Core.Models;
 using Ithil.Integration.Tests.Fixtures;

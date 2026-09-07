@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Interfaces;
 using Ithil.Core.Models;
 using Ithil.Gateway.Mcp;

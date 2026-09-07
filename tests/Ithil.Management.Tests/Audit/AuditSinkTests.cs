@@ -3,7 +3,7 @@ using Ithil.Core.Models;
 using Ithil.Management.Audit;
 using Ithil.Management.Audit.Sinks;
 using Microsoft.Extensions.Options;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace Ithil.Management.Tests.Audit;
 

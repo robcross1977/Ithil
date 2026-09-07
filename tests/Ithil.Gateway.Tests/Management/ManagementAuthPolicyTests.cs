@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Gateway.Management;
 
 namespace Ithil.Gateway.Tests.Management;

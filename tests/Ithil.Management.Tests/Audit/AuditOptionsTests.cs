@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Management.Audit;
 using Ithil.Management.Audit.Sinks;
 

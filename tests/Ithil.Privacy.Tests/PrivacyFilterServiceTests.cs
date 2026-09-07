@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using System.Text;
 
 namespace Ithil.Privacy.Tests;

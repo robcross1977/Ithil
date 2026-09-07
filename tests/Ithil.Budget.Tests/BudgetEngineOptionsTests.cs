@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Enums;
 
 namespace Ithil.Budget.Tests;

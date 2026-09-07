@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Models;
 using Ithil.Gateway.Hubs;
 using Microsoft.Extensions.Logging.Abstractions;

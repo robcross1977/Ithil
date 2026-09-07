@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Licensing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.JsonWebTokens;

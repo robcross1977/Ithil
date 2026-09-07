@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Gateway.Mcp;
 
 namespace Ithil.Gateway.Tests.Mcp;

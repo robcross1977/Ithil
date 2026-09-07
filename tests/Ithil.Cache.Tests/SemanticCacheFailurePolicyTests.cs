@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Cache;
 using Ithil.Core.Enums;
 using Ithil.Core.Interfaces;

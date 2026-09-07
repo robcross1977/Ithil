@@ -3,7 +3,7 @@ using Ithil.Management.Audit.Sinks;
 using Ithil.Core.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace Ithil.Management.Tests.Audit;
 

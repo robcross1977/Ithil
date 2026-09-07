@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Dashboard.Auth;
 
 namespace Ithil.Dashboard.Tests;

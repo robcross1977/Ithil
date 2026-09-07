@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Models;
 using Ithil.Gateway.Tracing;
 using Microsoft.Extensions.Options;

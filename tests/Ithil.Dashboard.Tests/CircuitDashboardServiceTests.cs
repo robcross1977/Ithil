@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Ithil.Core.Models;
 using Ithil.Dashboard.Models;
 using Ithil.Dashboard.Services;
