@@ -49,7 +49,12 @@ public sealed class AgentToolMetadata
         AllowWrite = allowWrite;
         MaxResponseTokens = maxResponseTokens;
         Category = category;
-        RequiredScopes = requiredScopes ?? Array.Empty<string>();
+        // Copied, not aliased. RequiredScopes feeds authorization, so a caller holding a
+        // reference to the array they passed must not be able to change what the tool
+        // demands after registration.
+        RequiredScopes = requiredScopes is null
+            ? Array.Empty<string>()
+            : (string[])requiredScopes.Clone();
         HttpMethod = string.IsNullOrWhiteSpace(httpMethod) ? null : httpMethod!.ToUpperInvariant();
     }
 
@@ -68,8 +73,11 @@ public sealed class AgentToolMetadata
     /// <summary>Optional grouping category shown in the MCP tool list.</summary>
     public string? Category { get; }
 
-    /// <summary>JWT scopes required to call this tool.</summary>
-    public string[] RequiredScopes { get; }
+    /// <summary>
+    /// JWT scopes required to call this tool. Exposed as a read-only view so the stored
+    /// scopes cannot be rewritten through the property.
+    /// </summary>
+    public IReadOnlyList<string> RequiredScopes { get; }
 
     /// <summary>
     /// Explicitly chosen verb, upper-cased, or <c>null</c> to infer it from the endpoint.

@@ -370,4 +370,54 @@ public class EndpointToolDiscoveryTests
 
         tools.Should().AllSatisfy(t => t.HttpMethod.Should().NotBeNullOrWhiteSpace());
     }
+
+    // -------------------------------------------------------------------------
+    // Metadata immutability
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void AgentToolMetadata_DoesNotAliasCallerScopesArray()
+    {
+        // RequiredScopes drives authorization. If the metadata keeps the caller array,
+        // a later write to that array silently changes what the tool demands.
+        var scopes = new[] { "reports.read" };
+        var metadata = new AgentToolMetadata("R", "Reads reports", requiredScopes: scopes);
+
+        scopes[0] = "admin.everything";
+
+        metadata.RequiredScopes.Should().Equal("reports.read");
+    }
+
+    [Fact]
+    public async Task Discover_GivesEachToolEntry_ItsOwnScopesArray()
+    {
+        // ToolEntry.RequiredScopes is a mutable array behind a public setter. If discovery
+        // handed out the endpoint metadata array, a downstream consumer editing an entry
+        // would rewrite the endpoint scopes for every later read.
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Logging.ClearProviders();
+
+        var app = builder.Build();
+        app.MapGet("/api/reports", () => Results.Ok())
+           .WithAgentTool("GetReports", "Reads reports", requiredScopes: ["reports.read"]);
+
+        await app.StartAsync();
+        try
+        {
+            var source = app.Services.GetRequiredService<EndpointDataSource>();
+
+            var first = EndpointToolDiscovery.Discover(source);
+            first[0].RequiredScopes[0] = "admin.everything";
+
+            // Re-reading the same endpoint must still report the scope it was registered with.
+            var second = EndpointToolDiscovery.Discover(source);
+            second[0].RequiredScopes.Should().Equal("reports.read");
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
 }

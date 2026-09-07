@@ -59,7 +59,9 @@ public static class EndpointToolDiscovery
             AllowWrite = tool.AllowWrite,
             MaxResponseTokens = tool.MaxResponseTokens,
             Category = tool.Category,
-            RequiredScopes = tool.RequiredScopes,
+            // ToolEntry.RequiredScopes is a mutable array on a public setter, so it gets its
+            // own copy rather than a handle on the endpoint metadata.
+            RequiredScopes = tool.RequiredScopes.ToArray(),
             HttpMethod = ResolveHttpMethod(endpoint, tool),
             RoutePattern = routePattern,
             ParameterSources = sources,
