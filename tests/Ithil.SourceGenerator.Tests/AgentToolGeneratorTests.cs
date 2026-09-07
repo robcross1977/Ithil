@@ -415,6 +415,103 @@ public class AgentToolGeneratorTests
     }
 
     [Fact]
+    public void CatchAllRouteParameter_EmittedAsRouteSource()
+    {
+        // {*path} is a catch-all. Classifying it as "query" would tell the agent to send
+        // ?path=a/b/c against a route that expects the value in the path itself.
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/files")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("{*path}")]
+                public void GetFile(string path) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"path\", \"route\" }");
+    }
+
+    [Fact]
+    public void DoubleCatchAllRouteParameter_EmittedAsRouteSource()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/files")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("{**path}")]
+                public void GetFile(string path) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"path\", \"route\" }");
+    }
+
+    [Fact]
+    public void ConstrainedCatchAllRouteParameter_EmittedAsRouteSource()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/files")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("{*path:minlength(1)}")]
+                public void GetFile(string path) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"path\", \"route\" }");
+    }
+
+    [Fact]
+    public void OptionalRouteParameter_EmittedAsRouteSource()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/inventory")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("stock/{sku?}")]
+                public void GetInventory(string sku) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"sku\", \"route\" }");
+    }
+
+    [Fact]
+    public void RouteParameterWithDefaultValue_EmittedAsRouteSource()
+    {
+        var code = """
+            using Ithil.Attributes;
+            using Microsoft.AspNetCore.Mvc;
+            [Route("api/inventory")]
+            public class MyController {
+                [AgentTool("desc")]
+                [HttpGet("stock/{sku=all}")]
+                public void GetInventory(string sku) {}
+            }
+            """;
+
+        var (_, _, source) = RunGenerator(code);
+
+        source.Should().Contain("{ \"sku\", \"route\" }");
+    }
+
+    [Fact]
     public void AllowWrite_DefaultsFalse_WhenNotSpecified()
     {
         var code = """

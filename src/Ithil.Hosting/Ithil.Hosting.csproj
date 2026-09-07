@@ -9,9 +9,9 @@
     <LangVersion>latest</LangVersion>
 
     <PackageId>Ithil.Hosting</PackageId>
-    <Version>0.2.2</Version>
+    <Version>0.3.0</Version>
     <Authors>Ithil Software</Authors>
-    <Description>Add Ithil governance to your ASP.NET API. Provides AddIthilHosting() and MapIthilSchema() for exposing source-generated tool schemas to the Ithil Gateway.</Description>
+    <Description>Add Ithil governance to your ASP.NET API. Exposes your endpoints to the Ithil Gateway as MCP tools, whether declared with [AgentTool] on controller actions or marked with WithAgentTool() on minimal-API routes.</Description>
     <PackageTags>mcp;ai;agent;gateway;ithil</PackageTags>
     <PackageProjectUrl>https://ithil.software</PackageProjectUrl>
     <RepositoryUrl>https://github.com/robcross1977/Ithil</RepositoryUrl>
@@ -26,6 +26,14 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Merge() is an implementation detail of MapIthilSchema, not public package API,
+         but it carries the precedence rules worth testing directly. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Ithil.Hosting.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>
