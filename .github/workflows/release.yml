@@ -25,12 +25,22 @@ jobs:
 
       # E2E tests deliberately do not gate a tagged release: they run on every PR and
       # trunk push in ci.yml, so the commit being tagged has already passed them.
+      #
+      # Per-project rather than a solution-wide --filter: xunit v3 runs on
+      # Microsoft.Testing.Platform, which errors (exit code 8) on a project that
+      # matches zero tests. See the equivalent step in ci.yml.
       - name: Test
-        run: >
-          dotnet test Ithil.slnx
-          --no-build
-          --configuration Release
-          --filter "FullyQualifiedName!~PlaywrightTests"
+        run: |
+          set -euo pipefail
+          for proj in tests/*/*.csproj; do
+            case "$proj" in
+              *PlaywrightTests*) continue ;;
+              *Integration.Tests*) continue ;;
+            esac
+            echo "::group::$proj"
+            dotnet test "$proj" --no-build --configuration Release
+            echo "::endgroup::"
+          done
 
   publish-nuget:
     name: Publish NuGet

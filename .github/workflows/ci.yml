@@ -27,12 +27,27 @@ jobs:
 
       # Playwright tests are excluded here and run in the dedicated `e2e` job below,
       # so a browser problem never masks a unit-test result (or vice versa).
+      #
+      # These run per-project rather than as `dotnet test Ithil.slnx --filter ...`
+      # because xunit v3 runs on Microsoft.Testing.Platform, which treats a project
+      # that matches zero tests as an error (exit code 8). A solution-wide name filter
+      # would therefore always fail on the Playwright project. Excluding by project
+      # keeps a genuine "zero tests ran" regression an error, which is the point.
+      #
+      # Ithil.Integration.Tests is skipped because it is not a member of Ithil.slnx
+      # and so is never built by the Build step above.
       - name: Test (unit + integration)
-        run: >
-          dotnet test Ithil.slnx
-          --no-build
-          --configuration Release
-          --filter "FullyQualifiedName!~PlaywrightTests"
+        run: |
+          set -euo pipefail
+          for proj in tests/*/*.csproj; do
+            case "$proj" in
+              *PlaywrightTests*) continue ;;
+              *Integration.Tests*) continue ;;
+            esac
+            echo "::group::$proj"
+            dotnet test "$proj" --no-build --configuration Release
+            echo "::endgroup::"
+          done
 
   e2e:
     name: E2E (Playwright)
