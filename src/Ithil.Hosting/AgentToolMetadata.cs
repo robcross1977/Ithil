@@ -52,9 +52,7 @@ public sealed class AgentToolMetadata
         // Copied, not aliased. RequiredScopes feeds authorization, so a caller holding a
         // reference to the array they passed must not be able to change what the tool
         // demands after registration.
-        RequiredScopes = requiredScopes is null
-            ? Array.Empty<string>()
-            : (string[])requiredScopes.Clone();
+        RequiredScopes = Array.AsReadOnly(requiredScopes is null ? Array.Empty<string>() : (string[])requiredScopes.Clone());
         HttpMethod = string.IsNullOrWhiteSpace(httpMethod) ? null : httpMethod!.ToUpperInvariant();
     }
 
