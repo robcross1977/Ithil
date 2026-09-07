@@ -357,10 +357,26 @@ public class AgentToolGenerator : IIncrementalGenerator
         return IsComplexType(param.Type) ? "body" : "query";
     }
 
+    // Extracts parameter names from a route template.
+    //
+    // The pattern must tolerate every form ASP.NET Core accepts, because anything it fails to
+    // recognise is silently reclassified as a query parameter — which tells the agent to send
+    // ?path=a/b/c against a route that expects the value in the path.
+    //
+    //   {id}                    plain
+    //   {id:int}                constrained
+    //   {id?}                   optional
+    //   {id=all}                default value
+    //   {*path} / {**path}      catch-all, optionally also constrained
+    //
+    // Leading asterisks are consumed before the name; everything after it up to the closing
+    // brace (constraint, optional marker, default) is ignored. Only the name is needed, and it
+    // always comes first, so even a constraint containing braces — {id:regex(^\d{4}$)} — still
+    // yields the correct name.
     private static HashSet<string> ExtractRouteParams(string routePattern) =>
         new(
             System.Text.RegularExpressions.Regex
-                .Matches(routePattern, @"\{(\w+)(?::[^}]*)?\}")
+                .Matches(routePattern, @"\{\*{0,2}(\w+)[^}]*\}")
                 .Cast<System.Text.RegularExpressions.Match>()
                 .Select(m => m.Groups[1].Value),
             StringComparer.OrdinalIgnoreCase);

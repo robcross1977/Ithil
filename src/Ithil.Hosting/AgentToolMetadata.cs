@@ -21,13 +21,18 @@ public sealed class AgentToolMetadata
     /// <param name="maxResponseTokens">Token ceiling for responses. Defaults to 2000.</param>
     /// <param name="category">Optional grouping category for the dashboard tool library.</param>
     /// <param name="requiredScopes">Optional OAuth scopes the calling agent must hold.</param>
+    /// <param name="httpMethod">
+    /// Verb the agent should call. Required only when the endpoint does not resolve to exactly
+    /// one verb — a verbless <c>Map</c>, or a multi-verb <c>MapMethods</c>.
+    /// </param>
     public AgentToolMetadata(
         string name,
         string description,
         bool allowWrite = false,
         int maxResponseTokens = 2000,
         string? category = null,
-        string[]? requiredScopes = null)
+        string[]? requiredScopes = null,
+        string? httpMethod = null)
     {
         // Fail at startup rather than serving a nameless or undescribed tool. The generator
         // catches these at compile time (ITHIL002) for attributed methods; minimal-API
@@ -45,6 +50,7 @@ public sealed class AgentToolMetadata
         MaxResponseTokens = maxResponseTokens;
         Category = category;
         RequiredScopes = requiredScopes ?? Array.Empty<string>();
+        HttpMethod = string.IsNullOrWhiteSpace(httpMethod) ? null : httpMethod!.ToUpperInvariant();
     }
 
     /// <summary>Tool identifier the agent calls.</summary>
@@ -64,4 +70,9 @@ public sealed class AgentToolMetadata
 
     /// <summary>JWT scopes required to call this tool.</summary>
     public string[] RequiredScopes { get; }
+
+    /// <summary>
+    /// Explicitly chosen verb, upper-cased, or <c>null</c> to infer it from the endpoint.
+    /// </summary>
+    public string? HttpMethod { get; }
 }

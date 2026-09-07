@@ -36,6 +36,12 @@ public static class AgentToolEndpointExtensions
     /// <param name="maxResponseTokens">Token ceiling for responses. Defaults to 2000.</param>
     /// <param name="category">Optional grouping category for the dashboard tool library.</param>
     /// <param name="requiredScopes">Optional OAuth scopes the calling agent must hold.</param>
+    /// <param name="httpMethod">
+    /// Verb the agent should call. Only needed when the endpoint does not resolve to exactly
+    /// one verb: a verbless <c>app.Map(...)</c>, or a multi-verb
+    /// <c>app.MapMethods(..., ["GET", "POST"], ...)</c>. A tool carries a single verb, so in
+    /// those cases discovery cannot pick one for you and will throw until you say which.
+    /// </param>
     /// <exception cref="ArgumentException">
     /// Thrown at registration when <paramref name="name"/> or <paramref name="description"/> is empty.
     /// </exception>
@@ -46,11 +52,12 @@ public static class AgentToolEndpointExtensions
         bool allowWrite = false,
         int maxResponseTokens = 2000,
         string? category = null,
-        string[]? requiredScopes = null)
+        string[]? requiredScopes = null,
+        string? httpMethod = null)
         where TBuilder : IEndpointConventionBuilder
     {
         var metadata = new AgentToolMetadata(
-            name, description, allowWrite, maxResponseTokens, category, requiredScopes);
+            name, description, allowWrite, maxResponseTokens, category, requiredScopes, httpMethod);
 
         builder.Add(endpoint => endpoint.Metadata.Add(metadata));
         return builder;

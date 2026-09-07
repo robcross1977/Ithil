@@ -1,8 +1,8 @@
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing.Patterns;
 
 namespace Ithil.Hosting;
 
@@ -50,7 +50,7 @@ public static class EndpointToolDiscovery
         var routePattern = (endpoint.RoutePattern.RawText ?? string.Empty).TrimStart('/');
 
         var (sources, types) = DetermineParameterSources(
-            endpoint.Metadata.GetMetadata<MethodInfo>(), routePattern);
+            endpoint.Metadata.GetMetadata<MethodInfo>(), endpoint.RoutePattern);
 
         return new ToolEntry
         {
@@ -60,29 +60,76 @@ public static class EndpointToolDiscovery
             MaxResponseTokens = tool.MaxResponseTokens,
             Category = tool.Category,
             RequiredScopes = tool.RequiredScopes,
-            HttpMethod = ResolveHttpMethod(endpoint),
+            HttpMethod = ResolveHttpMethod(endpoint, tool),
             RoutePattern = routePattern,
             ParameterSources = sources,
             ParameterTypes = types
         };
     }
 
-    // An endpoint may advertise several verbs; the schema carries one. Prefer the first
-    // non-HEAD verb, since ASP.NET adds HEAD alongside GET automatically.
-    private static string ResolveHttpMethod(RouteEndpoint endpoint)
+    /// <summary>
+    /// Determines the single verb an agent should use to call this tool.
+    /// </summary>
+    /// <remarks>
+    /// A tool carries exactly one verb, but an ASP.NET Core endpoint need not. Rather than
+    /// guess — which would silently publish a schema that calls the wrong verb, or none —
+    /// anything ambiguous throws and names the fix.
+    ///
+    /// <para>HEAD is filtered out because the framework adds it alongside GET on its own.</para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the endpoint constrains zero verbs, or more than one, and the tool did not
+    /// state which to use.
+    /// </exception>
+    private static string ResolveHttpMethod(RouteEndpoint endpoint, AgentToolMetadata tool)
     {
-        var methods = endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods;
-        if (methods is null || methods.Count == 0) return string.Empty;
+        var declared = endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods;
 
-        return methods.FirstOrDefault(m =>
-            !string.Equals(m, "HEAD", StringComparison.OrdinalIgnoreCase)) ?? methods[0];
+        var candidates = (declared ?? Array.Empty<string>())
+            .Where(m => !string.Equals(m, "HEAD", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (tool.HttpMethod is not null)
+        {
+            // An explicit verb must still be one the endpoint actually serves, otherwise the
+            // schema would advertise a call that always 405s. An unconstrained endpoint
+            // (verbless Map) serves every verb, so anything is valid there.
+            if (candidates.Count > 0 &&
+                !candidates.Contains(tool.HttpMethod, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Agent tool '{tool.Name}' on route '{endpoint.RoutePattern.RawText}' declares " +
+                    $"httpMethod '{tool.HttpMethod}', but the endpoint only serves " +
+                    $"{string.Join(", ", candidates)}. Use one of those, or remove httpMethod.");
+            }
+
+            return tool.HttpMethod;
+        }
+
+        if (candidates.Count == 1) return candidates[0];
+
+        if (candidates.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Agent tool '{tool.Name}' on route '{endpoint.RoutePattern.RawText}' is mapped " +
+                "without an HTTP method constraint, so the verb an agent should call is ambiguous. " +
+                "Map it with a verb-specific method (MapGet, MapPost, ...), or pass " +
+                "httpMethod: \"GET\" to WithAgentTool.");
+        }
+
+        throw new InvalidOperationException(
+            $"Agent tool '{tool.Name}' on route '{endpoint.RoutePattern.RawText}' serves multiple " +
+            $"HTTP methods ({string.Join(", ", candidates)}), but a tool carries exactly one. " +
+            "Pass httpMethod to WithAgentTool to say which, or register a separate endpoint " +
+            "and tool per verb.");
     }
 
     // Reflection-based counterpart to the symbol-based logic in the source generator. Kept
     // deliberately parallel to AgentToolGenerator.DetermineParameterSources so both discovery
     // paths produce identical schemas for equivalent signatures.
     private static (Dictionary<string, string> Sources, Dictionary<string, string> Types)
-        DetermineParameterSources(MethodInfo? handler, string routePattern)
+        DetermineParameterSources(MethodInfo? handler, RoutePattern routePattern)
     {
         var sources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var types = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -144,11 +191,12 @@ public static class EndpointToolDiscovery
         return IsComplexType(param.ParameterType) ? "body" : "query";
     }
 
-    private static HashSet<string> ExtractRouteParams(string routePattern) =>
+    // ASP.NET Core has already parsed the template, so its parameter list is authoritative.
+    // Hand-rolling a regex over RawText gets catch-all ({*path}, {**path}), constrained and
+    // optional segments wrong; RoutePattern.Parameters handles every form the router accepts.
+    private static HashSet<string> ExtractRouteParams(RoutePattern routePattern) =>
         new(
-            Regex.Matches(routePattern, @"\{(\w+)(?::[^}]*)?\??\}")
-                .Cast<Match>()
-                .Select(m => m.Groups[1].Value),
+            routePattern.Parameters.Select(p => p.Name),
             StringComparer.OrdinalIgnoreCase);
 
     // Parameters the framework supplies itself, which must never reach an agent as inputs.

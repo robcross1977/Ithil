@@ -257,4 +257,117 @@ public class EndpointToolDiscoveryTests
         act.Should().Throw<ArgumentException>()
            .WithMessage("*non-empty name*");
     }
+
+    // -------------------------------------------------------------------------
+    // Routing patterns raised in review
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Discover_ClassifiesCatchAllParameter_AsRoute()
+    {
+        var tools = await DiscoverAsync(app =>
+            app.MapGet("/files/{*path}", (string path) => Results.Ok())
+               .WithAgentTool("GetFile", "Gets a file by path"));
+
+        var tool = tools.Should().ContainSingle().Subject;
+        tool.ParameterSources["path"].Should().Be("route");
+    }
+
+    [Fact]
+    public async Task Discover_ClassifiesDoubleCatchAllParameter_AsRoute()
+    {
+        var tools = await DiscoverAsync(app =>
+            app.MapGet("/files/{**path}", (string path) => Results.Ok())
+               .WithAgentTool("GetFile", "Gets a file by path"));
+
+        var tool = tools.Should().ContainSingle().Subject;
+        tool.ParameterSources["path"].Should().Be("route");
+    }
+
+    [Fact]
+    public async Task Discover_ClassifiesConstrainedCatchAll_AsRoute()
+    {
+        var tools = await DiscoverAsync(app =>
+            app.MapGet("/files/{*path:minlength(1)}", (string path) => Results.Ok())
+               .WithAgentTool("GetFile", "Gets a file by path"));
+
+        var tool = tools.Should().ContainSingle().Subject;
+        tool.ParameterSources["path"].Should().Be("route");
+    }
+
+    [Fact]
+    public async Task Discover_Throws_ForMultiVerbEndpoint_WithoutExplicitMethod()
+    {
+        // MapMethods can register several verbs on one endpoint, but a tool carries one.
+        // Silently picking GET would publish a schema that never exercises POST.
+        var act = async () => await DiscoverAsync(app =>
+            app.MapMethods("/api/things", new[] { "GET", "POST" }, () => Results.Ok())
+               .WithAgentTool("Things", "Reads or writes things"));
+
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*multiple HTTP methods*")
+            .WithMessage("*GET, POST*");
+    }
+
+    [Fact]
+    public async Task Discover_UsesExplicitMethod_ForMultiVerbEndpoint()
+    {
+        var tools = await DiscoverAsync(app =>
+            app.MapMethods("/api/things", new[] { "GET", "POST" }, () => Results.Ok())
+               .WithAgentTool("Things", "Writes things", httpMethod: "POST"));
+
+        tools.Should().ContainSingle();
+        tools[0].HttpMethod.Should().Be("POST");
+    }
+
+    [Fact]
+    public async Task Discover_Throws_ForVerblessMap_WithoutExplicitMethod()
+    {
+        // app.Map(...) carries no IHttpMethodMetadata. The old code emitted an empty
+        // HttpMethod, putting an uncallable tool into the schema.
+        var act = async () => await DiscoverAsync(app =>
+            app.Map("/api/anything", () => Results.Ok())
+               .WithAgentTool("Anything", "Handles any verb"));
+
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*without an HTTP method constraint*");
+    }
+
+    [Fact]
+    public async Task Discover_UsesExplicitMethod_ForVerblessMap()
+    {
+        var tools = await DiscoverAsync(app =>
+            app.Map("/api/anything", () => Results.Ok())
+               .WithAgentTool("Anything", "Reads anything", httpMethod: "get"));
+
+        tools.Should().ContainSingle();
+        tools[0].HttpMethod.Should().Be("GET");
+    }
+
+    [Fact]
+    public async Task Discover_Throws_WhenExplicitMethodIsNotServedByEndpoint()
+    {
+        // Catches the typo case: a schema advertising DELETE on a GET-only route would
+        // hand the agent a call that always 405s.
+        var act = async () => await DiscoverAsync(app =>
+            app.MapGet("/api/things", () => Results.Ok())
+               .WithAgentTool("Things", "Gets things", httpMethod: "DELETE"));
+
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*only serves GET*");
+    }
+
+    [Fact]
+    public async Task Discover_NeverEmitsEmptyHttpMethod()
+    {
+        // Backstop for the class of bug rather than one instance of it.
+        var tools = await DiscoverAsync(app =>
+        {
+            app.MapGet("/a", () => Results.Ok()).WithAgentTool("A", "First");
+            app.MapPost("/b", () => Results.Ok()).WithAgentTool("B", "Second");
+            app.MapDelete("/c/{id}", (int id) => Results.Ok()).WithAgentTool("C", "Third");
+        });
+
+        tools.Should().AllSatisfy(t => t.HttpMethod.Should().NotBeNullOrWhiteSpace());
+    }
 }
