@@ -29,6 +29,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Merge() is an implementation detail of MapIthilSchema, not public package API,
+         but it carries the precedence rules worth testing directly. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Ithil.Hosting.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Declared as a dependency so consumers get [AgentTool] transitively from one package install. -->
     <ProjectReference Include="..\Ithil.Attributes\Ithil.Attributes.csproj" />
     <!-- Build the generator but don't expose it as a compile reference — it is bundled below. -->
