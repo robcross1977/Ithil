@@ -25,7 +25,7 @@ public class SemanticCacheFailurePolicyTests
     {
         _embedder.EmbedAsync(Arg.Any<string>()).Returns([1f, 0f, 0f]);
         _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var result = await CreateService(RedisFailurePolicy.FailOpen)
             .TryGetAsync("GetInventory", new { productId = 1 });
@@ -38,7 +38,7 @@ public class SemanticCacheFailurePolicyTests
     {
         _embedder.EmbedAsync(Arg.Any<string>()).Returns([1f, 0f, 0f]);
         _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateService(RedisFailurePolicy.FailClosed)
             .TryGetAsync("GetInventory", new { productId = 1 });

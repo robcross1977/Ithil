@@ -22,7 +22,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task IsWithinBudget_ReturnsTrue_WhenRedisUnavailable_AndFailOpen()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var result = await CreateEngine(RedisFailurePolicy.FailOpen)
             .IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
@@ -34,7 +34,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task IsWithinBudget_Throws_WhenRedisUnavailable_AndFailClosed()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateEngine(RedisFailurePolicy.FailClosed)
             .IsWithinBudgetAsync("agent-01", TestContext.Current.CancellationToken);
@@ -46,7 +46,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task GetUsage_ReturnsZero_WhenRedisUnavailable_AndFailOpen()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var result = await CreateEngine(RedisFailurePolicy.FailOpen).GetUsageAsync("agent-01");
 
@@ -57,7 +57,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task GetUsage_Throws_WhenRedisUnavailable_AndFailClosed()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateEngine(RedisFailurePolicy.FailClosed).GetUsageAsync("agent-01");
 
@@ -68,7 +68,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task RecordUsage_CompletesWithoutThrowing_WhenRedisUnavailable_AndFailOpen()
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateEngine(RedisFailurePolicy.FailOpen)
             .RecordUsageAsync("agent-01", 100, TestContext.Current.CancellationToken);
@@ -80,7 +80,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task RecordUsage_Throws_WhenRedisUnavailable_AndFailClosed()
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateEngine(RedisFailurePolicy.FailClosed)
             .RecordUsageAsync("agent-01", 100, TestContext.Current.CancellationToken);
@@ -92,7 +92,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task ResetUsage_CompletesWithoutThrowing_WhenRedisUnavailable_AndFailOpen()
     {
         _redis.KeyDeleteAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateEngine(RedisFailurePolicy.FailOpen)
             .ResetUsageAsync("agent-01", TestContext.Current.CancellationToken);
@@ -104,7 +104,7 @@ public class BudgetEngineFailurePolicyTests
     public async Task ResetUsage_Throws_WhenRedisUnavailable_AndFailClosed()
     {
         _redis.KeyDeleteAsync(Arg.Any<RedisKey>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateEngine(RedisFailurePolicy.FailClosed)
             .ResetUsageAsync("agent-01", TestContext.Current.CancellationToken);

@@ -125,7 +125,7 @@ public class SemanticCacheServiceTests
         // Write failures are always swallowed — a failed cache write must never fail the request.
         _embedder.EmbedAsync(Arg.Any<string>()).Returns(TestVector);
         _redis.ExecuteAsync(Arg.Any<string>(), Arg.Any<object[]>())
-            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "down"));
 
         var act = () => CreateService().SetAsync("GetInventory", new { productId = 1 }, new { quantity = 42 }, TimeSpan.FromMinutes(15));
 

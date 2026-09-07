@@ -31,7 +31,7 @@ public class RedisHealthCheckTests
     [Fact]
     public async Task RedisHealthCheck_ReturnsUnhealthy_WhenRedisThrows()
     {
-        var boom = new RedisConnectionException(ConnectionFailureType.UnableToConnect, "nope");
+        var boom = new RedisConnectionException(ConnectionFailureType.UnableToConnect, CommandFlags.None, "nope");
         _db.PingAsync(Arg.Any<CommandFlags>()).ThrowsAsync(boom);
 
         var check = new RedisHealthCheck(_redis);
