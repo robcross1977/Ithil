@@ -25,9 +25,60 @@ jobs:
       - name: Build
         run: dotnet build Ithil.slnx --no-restore --configuration Release
 
+      # Playwright tests are excluded here and run in the dedicated `e2e` job below,
+      # so a browser problem never masks a unit-test result (or vice versa).
       - name: Test (unit + integration)
         run: >
           dotnet test Ithil.slnx
           --no-build
           --configuration Release
           --filter "FullyQualifiedName!~PlaywrightTests"
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # Browser builds are pinned to the Microsoft.Playwright version, so the cache is
+      # keyed on <PlaywrightVersion> from the test csproj rather than on a lockfile.
+      # Bumping the package misses the cache, and the build step below then downloads
+      # the matching browsers automatically.
+      - name: Resolve Playwright version
+        id: pw
+        run: |
+          csproj=tests/Ithil.Dashboard.PlaywrightTests/Ithil.Dashboard.PlaywrightTests.csproj
+          version=$(sed -n 's|.*<PlaywrightVersion>\(.*\)</PlaywrightVersion>.*|\1|p' "$csproj" | head -1)
+          if [ -z "$version" ]; then
+            echo "Could not read <PlaywrightVersion> from $csproj" >&2
+            exit 1
+          fi
+          echo "Playwright version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      # The InstallPlaywrightBrowsers target in the test csproj installs browsers that
+      # match the driver version. PlaywrightInstallArgs adds the OS-level packages that
+      # Chromium needs on a bare Linux runner.
+      - name: Build (installs matching browsers)
+        run: >
+          dotnet build tests/Ithil.Dashboard.PlaywrightTests/Ithil.Dashboard.PlaywrightTests.csproj
+          --configuration Release
+          -p:PlaywrightInstallArgs=--with-deps
+
+      - name: Test (E2E)
+        run: >
+          dotnet test tests/Ithil.Dashboard.PlaywrightTests/Ithil.Dashboard.PlaywrightTests.csproj
+          --no-build
+          --configuration Release

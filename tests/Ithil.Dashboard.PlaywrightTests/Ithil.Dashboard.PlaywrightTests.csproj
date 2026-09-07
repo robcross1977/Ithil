@@ -15,6 +15,15 @@
     <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!--
+      Single source of truth for the Playwright version: the PackageReference below
+      and the InstallPlaywrightBrowsers target both read this property, so the driver
+      and the downloaded browser builds cannot drift apart.
+    -->
+    <PlaywrightVersion>1.61.0</PlaywrightVersion>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -22,7 +31,7 @@
     </PackageReference>
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
-    <PackageReference Include="Microsoft.Playwright" Version="1.61.0" />
+    <PackageReference Include="Microsoft.Playwright" Version="$(PlaywrightVersion)" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
@@ -42,19 +51,75 @@
   </ItemGroup>
 
   <!--
-    After building, install Playwright browsers.
+    Playwright is two halves that version in lockstep: the driver (this NuGet package)
+    and the browser binaries (downloaded out-of-band into %LOCALAPPDATA%\ms-playwright
+    on Windows, ~/.cache/ms-playwright elsewhere). Bumping the package without
+    re-running the install leaves the driver asking for a browser build that isn't on
+    disk, and every test fails in fixture setup with:
 
-    Cross-platform (macOS/Linux/Windows — no PowerShell required):
-      PLAYWRIGHT_VERSION=1.51.0
-      NODE=$(ls ~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/node/*/node | head -1)
-      CLI=~/.nuget/packages/microsoft.playwright/$PLAYWRIGHT_VERSION/.playwright/package/cli.js
-      $NODE $CLI install chromium
+      Microsoft.Playwright.PlaywrightException : Executable doesn't exist at
+      ...\ms-playwright\chromium_headless_shell-<build>\chrome-headless-shell.exe
 
-    PowerShell alternative (Windows / pwsh installed):
-      pwsh tests/Ithil.Dashboard.PlaywrightTests/bin/Debug/net10.0/playwright.ps1 install chromium
+    This target closes that gap by installing the matching browsers after a build.
+    The stamp file is named for $(PlaywrightVersion), so a package bump invalidates it
+    and triggers a fresh install while ordinary rebuilds skip it entirely.
 
-    The NuGet package ships its own Node.js binary so the first approach always works
-    regardless of what is installed globally.
+    It shells out to the Node binary that ships inside the NuGet package rather than
+    the generated playwright.ps1, which requires PowerShell Core (pwsh) on PATH and so
+    silently fails on machines that only have Windows PowerShell.
+
+    Escape hatches:
+      -p:InstallPlaywrightBrowsers=false   skip entirely (CI image with browsers baked in)
+      -p:PlaywrightBrowsers="chromium firefox"        install more than the default
+    On a Linux CI runner the browsers also need OS packages; pass the Playwright
+    with-deps flag via $(PlaywrightInstallArgs), or run the install as a separate
+    root step before the test step.
   -->
+  <PropertyGroup>
+    <PlaywrightBrowsers Condition="'$(PlaywrightBrowsers)' == ''">chromium</PlaywrightBrowsers>
+    <PlaywrightInstallArgs Condition="'$(PlaywrightInstallArgs)' == ''"></PlaywrightInstallArgs>
+  </PropertyGroup>
+
+  <Target Name="InstallPlaywrightBrowsers"
+          AfterTargets="Build"
+          Condition="'$(InstallPlaywrightBrowsers)' != 'false'">
+
+    <PropertyGroup>
+      <_PlaywrightStamp>$(IntermediateOutputPath)playwright-browsers.$(PlaywrightVersion).stamp</_PlaywrightStamp>
+      <_PlaywrightCli>$(OutDir).playwright/package/cli.js</_PlaywrightCli>
+    </PropertyGroup>
+
+    <!-- The package lays down only the current RID's Node, so this matches one file. -->
+    <ItemGroup>
+      <_PlaywrightNode Include="$(OutDir).playwright/node/*/node.exe" />
+      <_PlaywrightNode Include="$(OutDir).playwright/node/*/node" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_PlaywrightNodeExe>@(_PlaywrightNode->'%(FullPath)')</_PlaywrightNodeExe>
+      <_ShouldInstallPlaywright>false</_ShouldInstallPlaywright>
+      <_ShouldInstallPlaywright
+        Condition="!Exists('$(_PlaywrightStamp)') And Exists('$(_PlaywrightNodeExe)') And Exists('$(_PlaywrightCli)')"
+        >true</_ShouldInstallPlaywright>
+    </PropertyGroup>
+
+    <Message Importance="high"
+             Condition="'$(_ShouldInstallPlaywright)' == 'true'"
+             Text="Installing Playwright $(PlaywrightVersion) browsers ($(PlaywrightBrowsers)) — first build on this version, so this may take a few minutes." />
+
+    <Exec Condition="'$(_ShouldInstallPlaywright)' == 'true'"
+          Command="&quot;$(_PlaywrightNodeExe)&quot; &quot;$(_PlaywrightCli)&quot; install $(PlaywrightInstallArgs) $(PlaywrightBrowsers)" />
+
+    <Touch Condition="'$(_ShouldInstallPlaywright)' == 'true'"
+           Files="$(_PlaywrightStamp)"
+           AlwaysCreate="true" />
+
+    <!--
+      Not fatal: a restore-only or design-time build may not have staged the driver yet,
+      and failing the build there would be worse than a late, obvious test failure.
+    -->
+    <Warning Condition="!Exists('$(_PlaywrightStamp)') And '$(_ShouldInstallPlaywright)' != 'true'"
+             Text="Could not auto-install Playwright browsers: the bundled Node driver was not found under $(OutDir).playwright. Tests will fail until you install browsers manually." />
+  </Target>
 
 </Project>
